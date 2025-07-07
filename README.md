@@ -66,7 +66,7 @@ The system is composed of three main contracts:
 1. **Clone the repository:**
 
    ```bash
-   git clone https://github.com/your-team/circle-paymaster-hook.git
+   git clone https://github.com/BAMALab/CirclePaymasterHook
    cd circle-paymaster-hook
    ```
 
