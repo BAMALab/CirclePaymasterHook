@@ -31,6 +31,7 @@ contract DeployCirclePaymaster is Script {
 
         // Deploy Circle Paymaster Integration
         CirclePaymasterIntegration circlePaymasterIntegration = new CirclePaymasterIntegration(
+                0x9a13f98cB971c770034603fb798F21ef382CA9C7, // Sepolia PoolManager
                 0x3BA9A96eE3eFf3A69E2B18886AcF52027EFF8966, // Sepolia Circle Paymaster
                 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238 // Sepolia USDC
             );

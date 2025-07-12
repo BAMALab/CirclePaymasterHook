@@ -179,6 +179,14 @@ contract CirclePaymasterIntegration is Ownable, ReentrancyGuard {
         return abi.decode(data, (uint256));
     }
 
+        /**
+     * @dev Returns the latest USDC/ETH price from the oracle (Chainlink feed)
+     * @return Price with 18 decimals (8 decimals from Chainlink scaled up)
+     */
+    function usdcToEthRate() external view returns (uint256) {
+        return uint256(ORACLE.getChainlinkDataFeedLatestAnswer()) * 1e10;
+    }
+
     /**
      * @dev Withdraw user's USDC gas deposit
      * @param user The user to withdraw for
@@ -200,6 +208,8 @@ contract CirclePaymasterIntegration is Ownable, ReentrancyGuard {
     ) external onlyOwner {
         authorizedCallers[caller] = authorized;
     }
+
+    
 
     // Emergency functions
     function emergencyWithdrawUsdc(uint256 amount) external onlyOwner {
