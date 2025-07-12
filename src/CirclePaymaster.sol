@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "../src/oracle/DataConsumerV3.sol";
 import "forge-std/console.sol";
 
 /**
@@ -29,8 +30,7 @@ contract CirclePaymasterIntegration is Ownable, ReentrancyGuard {
     uint256 public constant BASE_GAS_COST = 21000;
     uint256 public constant SWAP_GAS_OVERHEAD = 150000;
 
-    // USDC to ETH price oracle (simplified - in production use Chainlink)
-    uint256 public usdcToEthRate = 3000; // 1 ETH = 3000 USDC (example)
+    DataConsumerV3 public immutable ORACLE;
 
     // Events
     event GasPaymentProcessed(
@@ -52,10 +52,12 @@ contract CirclePaymasterIntegration is Ownable, ReentrancyGuard {
 
     constructor(
         address _circlePaymaster,
-        address _usdcToken
+        address _usdcToken,
+        address _oracle
     ) Ownable(msg.sender) {
         circlePaymaster = _circlePaymaster;
         usdcToken = _usdcToken;
+        ORACLE = DataConsumerV3(_oracle);
     }
 
     /**
@@ -192,11 +194,6 @@ contract CirclePaymasterIntegration is Ownable, ReentrancyGuard {
         IERC20(usdcToken).safeTransfer(user, amount);
     }
 
-    // Admin functions
-    function updateUsdcToEthRate(uint256 newRate) external onlyOwner {
-        usdcToEthRate = newRate;
-    }
-
     function setAuthorizedCaller(
         address caller,
         bool authorized
@@ -221,7 +218,10 @@ contract CirclePaymasterIntegration is Ownable, ReentrancyGuard {
     function _convertEthToUsdc(
         uint256 ethAmount
     ) private view returns (uint256) {
-        return (ethAmount * usdcToEthRate) / 1e18;
+        uint256 usdcPerEth = uint256(
+            ORACLE.getChainlinkDataFeedLatestAnswer()
+        ) * 1e10; // 8 → 18 decimals
+        return (ethAmount * usdcPerEth) / 1e18;
     }
 
     // Modifiers
