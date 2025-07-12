@@ -23,6 +23,7 @@ import {LiquidityAmounts} from "@uniswap/v4-core/test/utils/LiquidityAmounts.sol
 
 import {CirclePaymasterHook} from "../src/Hook.sol";
 import {CirclePaymasterIntegration} from "../src/CirclePaymaster.sol";
+import {MockDataConsumerV3} from "./mocks/MockDataConsumerV3.sol";
 
 // Circle Paymaster Addresses:
 // Arbitrum Mainnet: 0x6C973eBe80dCD8660841D4356bf15c32460271C9
@@ -66,9 +67,12 @@ contract TestCirclePaymasterHook is Test, Deployers {
         usdc.mint(bob, INITIAL_USDC_BALANCE);
 
         // Deploy Circle Paymaster Integration
+        MockDataConsumerV3 mockOracle = new MockDataConsumerV3();
+
         circlePaymasterIntegration = new CirclePaymasterIntegration(
-            CIRCLE_PAYMASTER,
-            address(usdc)
+            address(mockOracle), // oracle stub
+            CIRCLE_PAYMASTER, // testnet paymaster
+            address(usdc) // testnet USDC
         );
 
         // Authorize the hook to call the Circle Paymaster Integration
@@ -349,8 +353,6 @@ contract TestCirclePaymasterHook is Test, Deployers {
 
         // Authorize the relayer
         circlePaymasterIntegration.setAuthorizedCaller(relayer, true);
-
-        circlePaymasterIntegration.updateUsdcToEthRate(1e18); // 1 ETH = 1e18 USDC for test
 
         circlePaymasterIntegration.processGasPayment(alice, 10_000_000_000_000);
 

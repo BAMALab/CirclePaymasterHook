@@ -12,6 +12,8 @@ contract DeploySepolia is Script {
     address constant SEPOLIA_CIRCLE_PAYMASTER =
         0x3BA9A96eE3eFf3A69E2B18886AcF52027EFF8966;
     address constant SEPOLIA_USDC = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
+   address constant SEPOLIA_POOL_MANAGER =
+       0x9a13f98cB971c770034603fb798F21ef382CA9C7;
 
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
@@ -26,6 +28,7 @@ contract DeploySepolia is Script {
 
         // Deploy Circle Paymaster Integration
         CirclePaymasterIntegration circlePaymasterIntegration = new CirclePaymasterIntegration(
+                SEPOLIA_POOL_MANAGER,
                 SEPOLIA_CIRCLE_PAYMASTER,
                 SEPOLIA_USDC
             );
