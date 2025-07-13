@@ -153,49 +153,54 @@ contract CirclePaymasterHook is BaseHook, Ownable {
         return (BaseHook.afterSwap.selector, 0);
     }
 
-    function _processGasPayment(address user, PoolKey calldata key) private {
-        uint256 estimatedGas = _estimateGasCost();
-        uint256 usdcRequired = _convertEthToUsdc(estimatedGas);
+   function _processGasPayment(address user, PoolKey calldata key) private {
+    uint256 estimatedGas = _estimateGasCost();
+    uint256 usdcRequired = _convertEthToUsdc(estimatedGas);
 
-        // Check user has enough USDC
-        require(
-            IERC20(USDC).balanceOf(user) >= usdcRequired,
-            "Insufficient USDC for gas payment"
-        );
+    // Check user has enough USDC
+    require(
+        IERC20(USDC).balanceOf(user) >= usdcRequired,
+        "Insufficient USDC for gas payment"
+    );
 
-        // Check user has approved the Circle Paymaster Integration to spend USDC
-        require(
-            IERC20(USDC).allowance(user, circlePaymasterIntegration) >=
-                usdcRequired,
-            "Insufficient USDC allowance for Circle Paymaster"
-        );
+    // Check user has approved THIS HOOK to spend USDC
+    require(
+        IERC20(USDC).allowance(user, address(this)) >= usdcRequired,
+        "Insufficient USDC allowance for hook"
+    );
 
-        // Call the Circle Paymaster Integration to process gas payment
-        (bool success, ) = circlePaymasterIntegration.call(
-            abi.encodeWithSignature(
-                "processGasPayment(address,uint256)",
-                user,
-                estimatedGas
-            )
-        );
-        require(success, "Circle Paymaster gas payment failed");
+    // Transfer USDC from user to this hook first
+    IERC20(USDC).safeTransferFrom(user, address(this), usdcRequired);
 
-        console.log(
-            "USDC deposited to Circle Paymaster during swap:",
-            usdcRequired
-        );
+    // Approve integration contract to spend the USDC
+    IERC20(USDC).approve(circlePaymasterIntegration, usdcRequired);
 
-        // Store gas context
-        bytes32 contextKey = keccak256(
-            abi.encodePacked(user, key.toId(), block.number)
-        );
-        gasContexts[contextKey] = GasContext({
-            user: user,
-            estimatedGasCost: estimatedGas,
-            usdcReserved: usdcRequired,
-            startGas: gasleft()
-        });
-    }
+    // Call the Circle Paymaster Integration to process gas payment
+    (bool success, ) = circlePaymasterIntegration.call(
+        abi.encodeWithSignature(
+            "processGasPayment(address,uint256)",
+            user,
+            usdcRequired // Send USDC amount, not gas amount
+        )
+    );
+    require(success, "Circle Paymaster gas payment failed");
+
+    console.log(
+        "USDC deposited to Circle Paymaster during swap:",
+        usdcRequired
+    );
+
+    // Store gas context
+    bytes32 contextKey = keccak256(
+        abi.encodePacked(user, key.toId(), block.number)
+    );
+    gasContexts[contextKey] = GasContext({
+        user: user,
+        estimatedGasCost: estimatedGas,
+        usdcReserved: usdcRequired,
+        startGas: gasleft()
+    });
+}       
 
     function _finalizeGasPayment(address user, PoolKey calldata key) private {
         bytes32 contextKey = keccak256(
