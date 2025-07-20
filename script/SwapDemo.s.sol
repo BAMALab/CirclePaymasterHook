@@ -7,15 +7,14 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract SwapDemo is Script {
     // Sepolia Testnet Configuration
-    address payable constant CIRCLE_PAYMASTER_INTEGRATION =
-        payable(0x06893BD7f0dd2747290115a4189df0c57d3B8658);
+    address payable constant CIRCLE_PAYMASTER_INTEGRATION = payable(0x06893BD7f0dd2747290115a4189df0c57d3B8658);
     address constant USDC = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
     address constant USER = 0x2830C21ecA4d3F7b5D4e7b7AB4ca0D8C04025bf8;
 
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address deployer = vm.addr(deployerPrivateKey);
-        
+
         console.log("=== SWAP WITH GAS PAYMENT DEMONSTRATION ===");
         console.log("Network: Sepolia Testnet");
         console.log("Deployer:", deployer);
@@ -26,9 +25,7 @@ contract SwapDemo is Script {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        CirclePaymasterIntegration integration = CirclePaymasterIntegration(
-            CIRCLE_PAYMASTER_INTEGRATION
-        );
+        CirclePaymasterIntegration integration = CirclePaymasterIntegration(CIRCLE_PAYMASTER_INTEGRATION);
         IERC20 usdc = IERC20(USDC);
 
         // Step 1: Pre-swap Setup and Balance Check
@@ -37,7 +34,7 @@ contract SwapDemo is Script {
         uint256 userEthBefore = USER.balance;
         uint256 integrationUsdcBefore = usdc.balanceOf(address(CIRCLE_PAYMASTER_INTEGRATION));
         uint256 userAllowance = usdc.allowance(USER, address(CIRCLE_PAYMASTER_INTEGRATION));
-        
+
         console.log("User USDC Balance:", userUsdcBefore);
         console.log("User ETH Balance:", userEthBefore);
         console.log("Integration USDC Balance:", integrationUsdcBefore);
@@ -76,10 +73,10 @@ contract SwapDemo is Script {
         uint256 swapGasLimit = 150000; // Estimated gas for swap
         console.log("Processing gas payment for swap...");
         console.log("Gas limit for swap:", swapGasLimit);
-        
+
         uint256 balanceBeforeGas = usdc.balanceOf(USER);
         console.log("User USDC before gas payment:", balanceBeforeGas);
-        
+
         try integration.processGasPayment(USER, swapGasLimit) {
             uint256 balanceAfterGas = usdc.balanceOf(USER);
             uint256 gasUsdcSpent = balanceBeforeGas - balanceAfterGas;
@@ -100,7 +97,7 @@ contract SwapDemo is Script {
         console.log("   - Expected output: ~0.0001 Mock Token");
         console.log("   - Slippage: 0.5%");
         console.log("   - Gas paid: USDC");
-        
+
         // Simulate swap success
         console.log("Swap executed successfully!");
         console.log("Price impact: 0.01%");
@@ -112,11 +109,11 @@ contract SwapDemo is Script {
         uint256 userUsdcAfter = usdc.balanceOf(USER);
         uint256 userEthAfter = USER.balance;
         uint256 integrationUsdcAfter = usdc.balanceOf(address(CIRCLE_PAYMASTER_INTEGRATION));
-        
+
         console.log("User USDC after swap:", userUsdcAfter);
         console.log("User ETH after swap:", userEthAfter);
         console.log("Integration USDC after swap:", integrationUsdcAfter);
-        
+
         console.log("\n=== BALANCE CHANGES ===");
         console.log("USDC spent on swap:", userUsdcBefore - userUsdcAfter);
         console.log("ETH spent:", userEthBefore - userEthAfter);
@@ -128,7 +125,7 @@ contract SwapDemo is Script {
         uint256 gasPriceGwei = tx.gasprice / 1e9;
         uint256 gasCostEth = (totalGasUsed * tx.gasprice);
         uint256 gasCostUsdc = 0; // Circle Paymaster is free
-        
+
         console.log("Total gas used:", totalGasUsed);
         console.log("Gas price:", gasPriceGwei, "Gwei");
         console.log("Gas cost in ETH:", gasCostEth);
@@ -145,7 +142,7 @@ contract SwapDemo is Script {
         console.log("Gas cost: FREE (Circle Paymaster)");
 
         vm.stopBroadcast();
-        
+
         console.log("\n=== DEMONSTRATION COMPLETE ===");
         console.log("Successfully demonstrated gasless swap with USDC gas payment!");
         console.log("Key benefits:");

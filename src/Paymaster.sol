@@ -8,10 +8,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 interface IEntryPoint {
     function balanceOf(address account) external view returns (uint256);
     function depositTo(address account) external payable;
-    function withdrawTo(
-        address payable withdrawAddress,
-        uint256 withdrawAmount
-    ) external;
+    function withdrawTo(address payable withdrawAddress, uint256 withdrawAmount) external;
 }
 
 contract Paymaster is Ownable, ReentrancyGuard {
@@ -51,11 +48,7 @@ contract Paymaster is Ownable, ReentrancyGuard {
     event PaymasterUsed(address indexed sender, uint256 actualGasCost);
     event Withdrawn(address indexed account, uint256 amount);
     event HookAuthorized(address indexed hook, bool authorized);
-    event USDCReimbursed(
-        address indexed user,
-        address indexed relayer,
-        uint256 usdcAmount
-    );
+    event USDCReimbursed(address indexed user, address indexed relayer, uint256 usdcAmount);
 
     // Errors
     error InsufficientDeposit();
@@ -78,10 +71,7 @@ contract Paymaster is Ownable, ReentrancyGuard {
     }
 
     modifier onlyAuthorizedHookOrOwner() {
-        require(
-            authorizedHooks[msg.sender] || msg.sender == owner(),
-            "Not authorized"
-        );
+        require(authorizedHooks[msg.sender] || msg.sender == owner(), "Not authorized");
         _;
     }
 
@@ -91,11 +81,7 @@ contract Paymaster is Ownable, ReentrancyGuard {
      * @param userOpHash Hash of the user operation
      * @param maxCost Maximum cost that the paymaster will pay
      */
-    function validatePaymasterUserOp(
-        UserOperation calldata userOp,
-        bytes32 userOpHash,
-        uint256 maxCost
-    )
+    function validatePaymasterUserOp(UserOperation calldata userOp, bytes32 userOpHash, uint256 maxCost)
         external
         onlyEntryPoint
         returns (bytes memory context, uint256 validationData)
@@ -128,15 +114,8 @@ contract Paymaster is Ownable, ReentrancyGuard {
      * @param context Context data from validatePaymasterUserOp
      * @param actualGasCost Actual gas cost of the operation
      */
-    function postOp(
-        PostOpMode mode,
-        bytes calldata context,
-        uint256 actualGasCost
-    ) external onlyEntryPoint {
-        (address sender, uint256 maxCost, uint256 timestamp) = abi.decode(
-            context,
-            (address, uint256, uint256)
-        );
+    function postOp(PostOpMode mode, bytes calldata context, uint256 actualGasCost) external onlyEntryPoint {
+        (address sender, uint256 maxCost, uint256 timestamp) = abi.decode(context, (address, uint256, uint256));
 
         // Handle different post-op modes
         if (mode == PostOpMode.opSucceeded) {
@@ -191,10 +170,7 @@ contract Paymaster is Ownable, ReentrancyGuard {
      * @param withdrawAddress Address to withdraw to
      * @param amount Amount to withdraw
      */
-    function withdrawTo(
-        address payable withdrawAddress,
-        uint256 amount
-    ) external nonReentrant {
+    function withdrawTo(address payable withdrawAddress, uint256 amount) external nonReentrant {
         require(withdrawAddress != address(0), "Invalid withdraw address");
         require(amount > 0, "Invalid amount");
         require(deposits[msg.sender] >= amount, "Insufficient balance");
@@ -202,7 +178,7 @@ contract Paymaster is Ownable, ReentrancyGuard {
         deposits[msg.sender] -= amount;
 
         // Transfer the funds
-        (bool success, ) = withdrawAddress.call{value: amount}("");
+        (bool success,) = withdrawAddress.call{value: amount}("");
         require(success, "Transfer failed");
 
         emit Withdrawn(msg.sender, amount);
@@ -213,10 +189,7 @@ contract Paymaster is Ownable, ReentrancyGuard {
      * @param hook The hook contract address
      * @param authorized Whether to authorize or deauthorize
      */
-    function setAuthorizedHook(
-        address hook,
-        bool authorized
-    ) external onlyOwner {
+    function setAuthorizedHook(address hook, bool authorized) external onlyOwner {
         authorizedHooks[hook] = authorized;
         emit HookAuthorized(hook, authorized);
     }
@@ -241,14 +214,11 @@ contract Paymaster is Ownable, ReentrancyGuard {
      * @param to Address to send funds to
      * @param amount Amount to withdraw
      */
-    function emergencyWithdraw(
-        address payable to,
-        uint256 amount
-    ) external onlyOwner {
+    function emergencyWithdraw(address payable to, uint256 amount) external onlyOwner {
         require(to != address(0), "Invalid address");
         require(amount <= address(this).balance, "Insufficient balance");
 
-        (bool success, ) = to.call{value: amount}("");
+        (bool success,) = to.call{value: amount}("");
         require(success, "Transfer failed");
     }
 
@@ -257,10 +227,7 @@ contract Paymaster is Ownable, ReentrancyGuard {
      * @param accounts Array of accounts to deposit for
      * @param amounts Array of amounts to deposit for each account
      */
-    function batchDeposit(
-        address[] calldata accounts,
-        uint256[] calldata amounts
-    ) external payable onlyOwner {
+    function batchDeposit(address[] calldata accounts, uint256[] calldata amounts) external payable onlyOwner {
         require(accounts.length == amounts.length, "Array length mismatch");
 
         uint256 totalAmount = 0;
@@ -297,22 +264,14 @@ contract Paymaster is Ownable, ReentrancyGuard {
      * @param usdc The USDC token address
      * @param usdcAmount The amount of USDC to reimburse
      */
-    function reimburseRelayerInUSDC(
-        address user,
-        address relayer,
-        address usdc,
-        uint256 usdcAmount
-    ) external onlyAuthorizedHookOrOwner {
+    function reimburseRelayerInUSDC(address user, address relayer, address usdc, uint256 usdcAmount)
+        external
+        onlyAuthorizedHookOrOwner
+    {
         require(user != address(0) && relayer != address(0), "Invalid address");
         require(usdcAmount > 0, "Zero amount");
-        require(
-            IERC20(usdc).allowance(user, address(this)) >= usdcAmount,
-            "Insufficient allowance"
-        );
-        require(
-            IERC20(usdc).balanceOf(user) >= usdcAmount,
-            "Insufficient USDC"
-        );
+        require(IERC20(usdc).allowance(user, address(this)) >= usdcAmount, "Insufficient allowance");
+        require(IERC20(usdc).balanceOf(user) >= usdcAmount, "Insufficient USDC");
         bool success = IERC20(usdc).transferFrom(user, relayer, usdcAmount);
         require(success, "USDC transfer failed");
         emit USDCReimbursed(user, relayer, usdcAmount);

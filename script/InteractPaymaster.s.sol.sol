@@ -8,8 +8,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract InteractCirclePaymaster is Script {
     // Sepolia Testnet Configuration
-    address payable constant CIRCLE_PAYMASTER_INTEGRATION =
-        payable(0x06893BD7f0dd2747290115a4189df0c57d3B8658); // Deployed Circle Paymaster Integration
+    address payable constant CIRCLE_PAYMASTER_INTEGRATION = payable(0x06893BD7f0dd2747290115a4189df0c57d3B8658); // Deployed Circle Paymaster Integration
     address constant USDC = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238; // Sepolia USDC
     address constant USER = 0x2830C21ecA4d3F7b5D4e7b7AB4ca0D8C04025bf8; // Your deployer address
     address constant RELAYER = 0x31BE08D380A21fc740883c0BC434FcFc88740b58; // Example relayer
@@ -20,32 +19,22 @@ contract InteractCirclePaymaster is Script {
 
         console.log("=== CIRCLE PAYMASTER INTERACTION ON SEPOLIA ===");
         console.log("Deployer:", deployer);
-        console.log(
-            "Integration Contract:",
-            address(CIRCLE_PAYMASTER_INTEGRATION)
-        );
+        console.log("Integration Contract:", address(CIRCLE_PAYMASTER_INTEGRATION));
         console.log("USDC Token:", USDC);
         console.log("User:", USER);
         console.log("Relayer:", RELAYER);
 
         vm.startBroadcast(deployerPrivateKey);
 
-        CirclePaymasterIntegration integration = CirclePaymasterIntegration(
-            CIRCLE_PAYMASTER_INTEGRATION
-        );
+        CirclePaymasterIntegration integration = CirclePaymasterIntegration(CIRCLE_PAYMASTER_INTEGRATION);
         IERC20 usdc = IERC20(USDC);
 
         // Step 1: Check initial balances
         console.log("\n--- STEP 1: INITIAL BALANCES ---");
         uint256 userUsdcBefore = usdc.balanceOf(USER);
-        uint256 integrationUsdcBefore = usdc.balanceOf(
-            address(CIRCLE_PAYMASTER_INTEGRATION)
-        );
+        uint256 integrationUsdcBefore = usdc.balanceOf(address(CIRCLE_PAYMASTER_INTEGRATION));
         uint256 userGasDepositBefore = integration.getUserGasDeposit(USER);
-        uint256 userUsdcAllowance = usdc.allowance(
-            USER,
-            address(CIRCLE_PAYMASTER_INTEGRATION)
-        );
+        uint256 userUsdcAllowance = usdc.allowance(USER, address(CIRCLE_PAYMASTER_INTEGRATION));
 
         console.log("User USDC Balance:", userUsdcBefore);
         console.log("Integration USDC Balance:", integrationUsdcBefore);
@@ -57,10 +46,7 @@ contract InteractCirclePaymaster is Script {
         if (userUsdcAllowance < 1000000) {
             // Less than 1 USDC allowance
             console.log("Approving USDC spending...");
-            usdc.approve(
-                address(CIRCLE_PAYMASTER_INTEGRATION),
-                type(uint256).max
-            );
+            usdc.approve(address(CIRCLE_PAYMASTER_INTEGRATION), type(uint256).max);
             console.log("USDC approval successful");
         } else {
             console.log("USDC already approved");
@@ -89,9 +75,7 @@ contract InteractCirclePaymaster is Script {
         // Step 5: Check balances after gas payment
         console.log("\n--- STEP 5: BALANCES AFTER GAS PAYMENT ---");
         uint256 userUsdcAfter = usdc.balanceOf(USER);
-        uint256 integrationUsdcAfter = usdc.balanceOf(
-            address(CIRCLE_PAYMASTER_INTEGRATION)
-        );
+        uint256 integrationUsdcAfter = usdc.balanceOf(address(CIRCLE_PAYMASTER_INTEGRATION));
         uint256 userGasDepositAfter = integration.getUserGasDeposit(USER);
 
         console.log("User USDC Balance:", userUsdcAfter);
@@ -99,14 +83,8 @@ contract InteractCirclePaymaster is Script {
         console.log("User Gas Deposit:", userGasDepositAfter);
 
         console.log("USDC spent on gas:", userUsdcBefore - userUsdcAfter);
-        console.log(
-            "USDC received by integration:",
-            integrationUsdcAfter - integrationUsdcBefore
-        );
-        console.log(
-            "Gas deposit change:",
-            userGasDepositAfter - userGasDepositBefore
-        );
+        console.log("USDC received by integration:", integrationUsdcAfter - integrationUsdcBefore);
+        console.log("Gas deposit change:", userGasDepositAfter - userGasDepositBefore);
 
         // Step 6: Test relayer reimbursement (if user has gas deposit)
         console.log("\n--- STEP 6: RELAYER REIMBURSEMENT ---");
@@ -116,27 +94,16 @@ contract InteractCirclePaymaster is Script {
 
             if (userGasDepositAfter >= reimbursementAmount) {
                 console.log("Reimbursing relayer with:", reimbursementAmount);
-                try
-                    integration.reimburseRelayerInUSDC(
-                        USER,
-                        RELAYER,
-                        reimbursementAmount
-                    )
-                {
+                try integration.reimburseRelayerInUSDC(USER, RELAYER, reimbursementAmount) {
                     console.log("Relayer reimbursement successful!");
                     uint256 relayerUsdcAfter = usdc.balanceOf(RELAYER);
                     console.log("Relayer USDC before:", relayerUsdcBefore);
                     console.log("Relayer USDC after:", relayerUsdcAfter);
-                    console.log(
-                        "Relayer received:",
-                        relayerUsdcAfter - relayerUsdcBefore
-                    );
+                    console.log("Relayer received:", relayerUsdcAfter - relayerUsdcBefore);
                 } catch Error(string memory reason) {
                     console.log("Relayer reimbursement failed:", reason);
                 } catch (bytes memory) {
-                    console.log(
-                        "Relayer reimbursement failed with low-level error"
-                    );
+                    console.log("Relayer reimbursement failed with low-level error");
                 }
             } else {
                 console.log("Insufficient gas deposit for reimbursement");
@@ -150,12 +117,7 @@ contract InteractCirclePaymaster is Script {
         uint256 ethDepositAmount = 0.001 ether;
         console.log("Depositing ETH to Circle Paymaster:", ethDepositAmount);
 
-        try
-            integration.depositToCirclePaymaster{value: ethDepositAmount}(
-                USER,
-                ethDepositAmount
-            )
-        {
+        try integration.depositToCirclePaymaster{value: ethDepositAmount}(USER, ethDepositAmount) {
             console.log("ETH deposit successful!");
         } catch Error(string memory reason) {
             console.log("ETH deposit failed:", reason);
@@ -166,9 +128,7 @@ contract InteractCirclePaymaster is Script {
         // Step 8: Final balance check
         console.log("\n--- STEP 8: FINAL BALANCES ---");
         uint256 userUsdcFinal = usdc.balanceOf(USER);
-        uint256 integrationUsdcFinal = usdc.balanceOf(
-            address(CIRCLE_PAYMASTER_INTEGRATION)
-        );
+        uint256 integrationUsdcFinal = usdc.balanceOf(address(CIRCLE_PAYMASTER_INTEGRATION));
         uint256 userGasDepositFinal = integration.getUserGasDeposit(USER);
 
         console.log("Final User USDC:", userUsdcFinal);

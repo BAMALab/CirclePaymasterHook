@@ -7,8 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract CompleteSwapFlow is Script {
     // Sepolia Testnet Configuration
-    address payable constant CIRCLE_PAYMASTER_INTEGRATION =
-        payable(0x06893BD7f0dd2747290115a4189df0c57d3B8658);
+    address payable constant CIRCLE_PAYMASTER_INTEGRATION = payable(0x06893BD7f0dd2747290115a4189df0c57d3B8658);
     address constant USDC = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
     address constant USER = 0x2830C21ecA4d3F7b5D4e7b7AB4ca0D8C04025bf8;
 
@@ -26,9 +25,7 @@ contract CompleteSwapFlow is Script {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        CirclePaymasterIntegration integration = CirclePaymasterIntegration(
-            CIRCLE_PAYMASTER_INTEGRATION
-        );
+        CirclePaymasterIntegration integration = CirclePaymasterIntegration(CIRCLE_PAYMASTER_INTEGRATION);
         IERC20 usdc = IERC20(USDC);
 
         // PHASE 1: PRE-SWAP SETUP
@@ -41,16 +38,10 @@ contract CompleteSwapFlow is Script {
         console.log("  User ETH:", userEthBefore);
 
         // Check USDC approval
-        uint256 allowance = usdc.allowance(
-            USER,
-            address(CIRCLE_PAYMASTER_INTEGRATION)
-        );
+        uint256 allowance = usdc.allowance(USER, address(CIRCLE_PAYMASTER_INTEGRATION));
         if (allowance < 1000000) {
             console.log("Approving USDC spending...");
-            usdc.approve(
-                address(CIRCLE_PAYMASTER_INTEGRATION),
-                type(uint256).max
-            );
+            usdc.approve(address(CIRCLE_PAYMASTER_INTEGRATION), type(uint256).max);
             console.log("USDC approval: SUCCESS");
         } else {
             console.log("USDC approval: ALREADY APPROVED");
@@ -131,7 +122,7 @@ contract CompleteSwapFlow is Script {
         vm.stopBroadcast();
 
         console.log("\n=== DEMONSTRATION RESULTS ===");
-       
+
         console.log("\n=== KEY BENEFITS ACHIEVED ===");
         console.log("1. No ETH required for gas fees");
         console.log("2. Gas paid in USDC (stablecoin)");

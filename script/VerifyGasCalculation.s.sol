@@ -6,8 +6,7 @@ import "../src/CirclePaymaster.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract VerifyGasCalculation is Script {
-    address payable constant CIRCLE_PAYMASTER_INTEGRATION =
-        payable(0x06893BD7f0dd2747290115a4189df0c57d3B8658);
+    address payable constant CIRCLE_PAYMASTER_INTEGRATION = payable(0x06893BD7f0dd2747290115a4189df0c57d3B8658);
     address constant USDC = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
     address constant USER = 0x2830C21ecA4d3F7b5D4e7b7AB4ca0D8C04025bf8;
 
@@ -21,9 +20,7 @@ contract VerifyGasCalculation is Script {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        CirclePaymasterIntegration integration = CirclePaymasterIntegration(
-            CIRCLE_PAYMASTER_INTEGRATION
-        );
+        CirclePaymasterIntegration integration = CirclePaymasterIntegration(CIRCLE_PAYMASTER_INTEGRATION);
         IERC20 usdc = IERC20(USDC);
 
         // Check initial balances
@@ -48,10 +45,7 @@ contract VerifyGasCalculation is Script {
         // Manual calculation verification
         uint256 manualUsdcCost = (ethCost * usdcToEthRate) / 1e18;
         console.log("Manual USDC calculation:", manualUsdcCost);
-        console.log(
-            "Matches contract calculation:",
-            manualUsdcCost == usdcCost
-        );
+        console.log("Matches contract calculation:", manualUsdcCost == usdcCost);
 
         // The issue: gas cost is too small to convert to USDC
         console.log("\n=== THE ISSUE ===");

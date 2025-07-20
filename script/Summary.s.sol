@@ -7,8 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract Summary is Script {
     // Sepolia Testnet Configuration
-    address payable constant CIRCLE_PAYMASTER_INTEGRATION =
-        payable(0x06893BD7f0dd2747290115a4189df0c57d3B8658);
+    address payable constant CIRCLE_PAYMASTER_INTEGRATION = payable(0x06893BD7f0dd2747290115a4189df0c57d3B8658);
     address constant USDC = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
     address constant USER = 0x2830C21ecA4d3F7b5D4e7b7AB4ca0D8C04025bf8;
 
@@ -21,36 +20,23 @@ contract Summary is Script {
         console.log("==========================================");
         console.log("Network: Sepolia Testnet");
         console.log("Deployer:", deployer);
-        console.log(
-            "Integration Contract:",
-            address(CIRCLE_PAYMASTER_INTEGRATION)
-        );
+        console.log("Integration Contract:", address(CIRCLE_PAYMASTER_INTEGRATION));
         console.log("USDC Token:", USDC);
-        console.log(
-            "Circle Paymaster:",
-            0x31BE08D380A21fc740883c0BC434FcFc88740b58
-        );
+        console.log("Circle Paymaster:", 0x31BE08D380A21fc740883c0BC434FcFc88740b58);
         console.log("Block Number:", block.number);
         console.log("Timestamp:", block.timestamp);
 
         vm.startBroadcast(deployerPrivateKey);
 
-        CirclePaymasterIntegration integration = CirclePaymasterIntegration(
-            CIRCLE_PAYMASTER_INTEGRATION
-        );
+        CirclePaymasterIntegration integration = CirclePaymasterIntegration(CIRCLE_PAYMASTER_INTEGRATION);
         IERC20 usdc = IERC20(USDC);
 
         // Check all balances and permissions
         console.log("\n=== BALANCE CHECK ===");
         uint256 userUsdc = usdc.balanceOf(USER);
         uint256 userEth = USER.balance;
-        uint256 integrationUsdc = usdc.balanceOf(
-            address(CIRCLE_PAYMASTER_INTEGRATION)
-        );
-        uint256 userAllowance = usdc.allowance(
-            USER,
-            address(CIRCLE_PAYMASTER_INTEGRATION)
-        );
+        uint256 integrationUsdc = usdc.balanceOf(address(CIRCLE_PAYMASTER_INTEGRATION));
+        uint256 userAllowance = usdc.allowance(USER, address(CIRCLE_PAYMASTER_INTEGRATION));
 
         console.log("User USDC Balance:", userUsdc);
         console.log("User ETH Balance:", userEth);
@@ -65,10 +51,8 @@ contract Summary is Script {
         gasLimits[2] = 150000; // Large transaction
         gasLimits[3] = 200000; // Very large transaction
 
-        for (uint i = 0; i < gasLimits.length; i++) {
-            (uint256 ethCost, uint256 usdcCost) = integration.getGasEstimate(
-                USER
-            );
+        for (uint256 i = 0; i < gasLimits.length; i++) {
+            (uint256 ethCost, uint256 usdcCost) = integration.getGasEstimate(USER);
             console.log("Gas Limit:", gasLimits[i]);
             console.log("  ETH Cost:", ethCost);
             console.log("  USDC Cost:", usdcCost);
@@ -99,28 +83,20 @@ contract Summary is Script {
 
         if (userGasDeposit >= reimbursementAmount) {
             uint256 relayerBefore = usdc.balanceOf(relayer);
-            integration.reimburseRelayerInUSDC(
-                USER,
-                relayer,
-                reimbursementAmount
-            );
+            integration.reimburseRelayerInUSDC(USER, relayer, reimbursementAmount);
             uint256 relayerAfter = usdc.balanceOf(relayer);
             console.log("Relayer reimbursement: SUCCESS");
             console.log("Amount reimbursed:", reimbursementAmount);
             console.log("Relayer received:", relayerAfter - relayerBefore);
         } else {
-            console.log(
-                "Relayer reimbursement: SKIPPED (insufficient deposit)"
-            );
+            console.log("Relayer reimbursement: SKIPPED (insufficient deposit)");
         }
 
         // Final balance check
         console.log("\n=== FINAL BALANCES ===");
         uint256 finalUserUsdc = usdc.balanceOf(USER);
         uint256 finalUserEth = USER.balance;
-        uint256 finalIntegrationUsdc = usdc.balanceOf(
-            address(CIRCLE_PAYMASTER_INTEGRATION)
-        );
+        uint256 finalIntegrationUsdc = usdc.balanceOf(address(CIRCLE_PAYMASTER_INTEGRATION));
 
         console.log("Final User USDC:", finalUserUsdc);
         console.log("Final User ETH:", finalUserEth);

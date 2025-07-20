@@ -6,15 +6,14 @@ import "../src/CirclePaymaster.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract FinalDemo is Script {
-    address payable constant CIRCLE_PAYMASTER_INTEGRATION =
-        payable(0x06893BD7f0dd2747290115a4189df0c57d3B8658);
+    address payable constant CIRCLE_PAYMASTER_INTEGRATION = payable(0x06893BD7f0dd2747290115a4189df0c57d3B8658);
     address constant USDC = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
     address constant USER = 0x2830C21ecA4d3F7b5D4e7b7AB4ca0D8C04025bf8;
 
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address deployer = vm.addr(deployerPrivateKey);
-        
+
         console.log("==========================================");
         console.log("FINAL GASLESS SWAP DEMONSTRATION");
         console.log("==========================================");
@@ -25,9 +24,7 @@ contract FinalDemo is Script {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        CirclePaymasterIntegration integration = CirclePaymasterIntegration(
-            CIRCLE_PAYMASTER_INTEGRATION
-        );
+        CirclePaymasterIntegration integration = CirclePaymasterIntegration(CIRCLE_PAYMASTER_INTEGRATION);
         IERC20 usdc = IERC20(USDC);
 
         // Step 1: Check balances
@@ -58,11 +55,11 @@ contract FinalDemo is Script {
         console.log("\n=== STEP 4: GAS PAYMENT ===");
         uint256 gasLimit = 100000;
         console.log("Processing gas payment for limit:", gasLimit);
-        
+
         uint256 balanceBefore = usdc.balanceOf(USER);
         integration.processGasPayment(USER, gasLimit);
         uint256 balanceAfter = usdc.balanceOf(USER);
-        
+
         console.log("USDC spent on gas:", balanceBefore - balanceAfter);
         console.log("Gas payment: SUCCESS");
 
@@ -85,21 +82,21 @@ contract FinalDemo is Script {
         console.log("Total ETH spent:", userEthBefore - userEthAfter);
 
         vm.stopBroadcast();
-        
+
         console.log("\n=== DEMONSTRATION RESULTS ===");
         console.log("Gasless swap: SUCCESSFUL");
         console.log("USDC gas payment: WORKING");
         console.log("No ETH required: CONFIRMED");
         console.log("User experience: SEAMLESS");
         console.log("Cost: FREE (Circle Paymaster)");
-        
+
         console.log("\n=== KEY BENEFITS ===");
         console.log("1. No ETH required for gas");
         console.log("2. Gas paid in USDC");
         console.log("3. Seamless user experience");
         console.log("4. Free until July 2025");
         console.log("5. Production ready");
-        
+
         console.log("\n==========================================");
         console.log("DEMONSTRATION COMPLETE!");
         console.log("==========================================");

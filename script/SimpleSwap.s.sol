@@ -7,8 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract SimpleSwap is Script {
     // Sepolia Testnet Configuration
-    address payable constant CIRCLE_PAYMASTER_INTEGRATION =
-        payable(0x06893BD7f0dd2747290115a4189df0c57d3B8658);
+    address payable constant CIRCLE_PAYMASTER_INTEGRATION = payable(0x06893BD7f0dd2747290115a4189df0c57d3B8658);
     address constant USDC = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
     address constant USER = 0x2830C21ecA4d3F7b5D4e7b7AB4ca0D8C04025bf8;
 
@@ -22,9 +21,7 @@ contract SimpleSwap is Script {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        CirclePaymasterIntegration integration = CirclePaymasterIntegration(
-            CIRCLE_PAYMASTER_INTEGRATION
-        );
+        CirclePaymasterIntegration integration = CirclePaymasterIntegration(CIRCLE_PAYMASTER_INTEGRATION);
         IERC20 usdc = IERC20(USDC);
 
         // Check initial balances
@@ -34,16 +31,10 @@ contract SimpleSwap is Script {
         console.log("User ETH before:", userEthBefore);
 
         // Approve USDC if needed
-        uint256 allowance = usdc.allowance(
-            USER,
-            address(CIRCLE_PAYMASTER_INTEGRATION)
-        );
+        uint256 allowance = usdc.allowance(USER, address(CIRCLE_PAYMASTER_INTEGRATION));
         if (allowance < 1000000) {
             console.log("Approving USDC...");
-            usdc.approve(
-                address(CIRCLE_PAYMASTER_INTEGRATION),
-                type(uint256).max
-            );
+            usdc.approve(address(CIRCLE_PAYMASTER_INTEGRATION), type(uint256).max);
         }
 
         // Get gas estimate

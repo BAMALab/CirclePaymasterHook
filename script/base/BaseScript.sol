@@ -15,8 +15,7 @@ import {AddressConstants} from "hookmate/constants/AddressConstants.sol";
 
 /// @notice Shared configuration between scripts
 contract BaseScript is Script {
-    IPermit2 immutable permit2 =
-        IPermit2(0x000000000022D473030F116dDEE9F6B43aC78BA3);
+    IPermit2 immutable permit2 = IPermit2(0x000000000022D473030F116dDEE9F6B43aC78BA3);
     IPoolManager immutable poolManager;
     IPositionManager immutable positionManager;
     IUniswapV4Router04 immutable swapRouter;
@@ -25,10 +24,8 @@ contract BaseScript is Script {
     /////////////////////////////////////
     // --- Configure These ---
     /////////////////////////////////////
-    IERC20 internal constant token0 =
-        IERC20(0x3B4c3885E8144af60A101c75468727863cFf23fA);
-    IERC20 internal constant token1 =
-        IERC20(0x90954dcFB08C84e1ebA306f59FAD660b3A7B5808);
+    IERC20 internal constant token0 = IERC20(0x3B4c3885E8144af60A101c75468727863cFf23fA);
+    IERC20 internal constant token1 = IERC20(0x90954dcFB08C84e1ebA306f59FAD660b3A7B5808);
     IHooks constant hookContract = IHooks(address(0x68d99e5B7E75863ff68843BecE98DA4B8bE440C0));
     /////////////////////////////////////
 
@@ -36,15 +33,9 @@ contract BaseScript is Script {
     Currency immutable currency1;
 
     constructor() {
-        poolManager = IPoolManager(
-            AddressConstants.getPoolManagerAddress(block.chainid)
-        );
-        positionManager = IPositionManager(
-            payable(AddressConstants.getPositionManagerAddress(block.chainid))
-        );
-        swapRouter = IUniswapV4Router04(
-            payable(AddressConstants.getV4SwapRouterAddress(block.chainid))
-        );
+        poolManager = IPoolManager(AddressConstants.getPoolManagerAddress(block.chainid));
+        positionManager = IPositionManager(payable(AddressConstants.getPositionManagerAddress(block.chainid)));
+        swapRouter = IUniswapV4Router04(payable(AddressConstants.getV4SwapRouterAddress(block.chainid)));
 
         deployerAddress = getDeployer();
 
@@ -64,15 +55,9 @@ contract BaseScript is Script {
         require(address(token0) != address(token1));
 
         if (token0 < token1) {
-            return (
-                Currency.wrap(address(token0)),
-                Currency.wrap(address(token1))
-            );
+            return (Currency.wrap(address(token0)), Currency.wrap(address(token1)));
         } else {
-            return (
-                Currency.wrap(address(token1)),
-                Currency.wrap(address(token0))
-            );
+            return (Currency.wrap(address(token1)), Currency.wrap(address(token0)));
         }
     }
 

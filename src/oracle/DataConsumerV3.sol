@@ -18,7 +18,6 @@ import "@chainlink/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
  * https://docs.chain.link/data-feeds/l2-sequencer-feeds
  * page for details.
  */
-
 contract DataConsumerV3 {
     AggregatorV3Interface internal dataFeed;
 
@@ -28,21 +27,22 @@ contract DataConsumerV3 {
      * Address: 0x694AA1769357215DE4FAC081bf1f309aDC325306
      */
     constructor() {
-        dataFeed = AggregatorV3Interface(
-            0x694AA1769357215DE4FAC081bf1f309aDC325306
-        );
+        dataFeed = AggregatorV3Interface(0x694AA1769357215DE4FAC081bf1f309aDC325306);
     }
 
     /**
      * Returns the latest answer.
      */
-    function getChainlinkDataFeedLatestAnswer() public view returns (int) {
+    function getChainlinkDataFeedLatestAnswer() public view returns (int256) {
         // prettier-ignore
         (
-            /* uint80 roundId */,
+            /* uint80 roundId */
+            ,
             int256 answer,
-            /*uint256 startedAt*/,
-            /*uint256 updatedAt*/,
+            /*uint256 startedAt*/
+            ,
+            /*uint256 updatedAt*/
+            ,
             /*uint80 answeredInRound*/
         ) = dataFeed.latestRoundData();
         return answer;

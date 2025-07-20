@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
 import {IHooks} from "v4-core/interfaces/IHooks.sol";
@@ -62,28 +62,17 @@ contract TestCirclePaymasterHook is Test, Deployers {
         mockOracle = new MockDataConsumerV3();
         mockOracle.setPrice(3000 * 1e8); // Correct price: 3000 USD/ETH
 
-        circlePaymasterIntegration = new CirclePaymasterIntegration(
-            CIRCLE_PAYMASTER,
-            address(usdc),
-            address(mockOracle)
-        );
+        circlePaymasterIntegration =
+            new CirclePaymasterIntegration(CIRCLE_PAYMASTER, address(usdc), address(mockOracle));
 
         circlePaymasterIntegration.setAuthorizedCaller(address(this), true);
 
-        address hookAddress = address(
-            uint160(Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG)
-        );
+        address hookAddress = address(uint160(Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG));
 
         vm.txGasPrice(20 gwei);
 
         deployCodeTo(
-            "CirclePaymasterHook",
-            abi.encode(
-                manager,
-                address(circlePaymasterIntegration),
-                address(usdc)
-            ),
-            hookAddress
+            "CirclePaymasterHook", abi.encode(manager, address(circlePaymasterIntegration), address(usdc)), hookAddress
         );
 
         hook = CirclePaymasterHook(payable(hookAddress));
@@ -108,10 +97,10 @@ contract TestCirclePaymasterHook is Test, Deployers {
         vm.prank(alice);
         usdc.approve(address(swapRouter), type(uint256).max);
 
-        (key, ) = initPool(
+        (poolKey,) = initPool(
             currency0,
             currency1,
-            hook, // Fixed from Hooker.sol
+            hook,
             LPFeeLibrary.DYNAMIC_FEE_FLAG,
             SQRT_PRICE_1_1
         );
@@ -125,17 +114,11 @@ contract TestCirclePaymasterHook is Test, Deployers {
 
         uint128 liquidityDelta = 1e18;
 
-        uint256 usdcToAdd = LiquidityAmounts.getAmount0ForLiquidity(
-            SQRT_PRICE_1_1,
-            sqrtPriceAtTickUpper,
-            liquidityDelta
-        );
+        uint256 usdcToAdd =
+            LiquidityAmounts.getAmount0ForLiquidity(SQRT_PRICE_1_1, sqrtPriceAtTickUpper, liquidityDelta);
 
-        uint256 tokenBToAdd = LiquidityAmounts.getAmount1ForLiquidity(
-            sqrtPriceAtTickLower,
-            SQRT_PRICE_1_1,
-            liquidityDelta
-        );
+        uint256 tokenBToAdd =
+            LiquidityAmounts.getAmount1ForLiquidity(sqrtPriceAtTickLower, SQRT_PRICE_1_1, liquidityDelta);
 
         tokenB.mint(alice, tokenBToAdd);
         tokenB.mint(bob, 1_000_000 ether);
@@ -143,7 +126,7 @@ contract TestCirclePaymasterHook is Test, Deployers {
         tokenB.mint(address(this), tokenBToAdd);
 
         modifyLiquidityRouter.modifyLiquidity(
-            key,
+            poolKey,
             ModifyLiquidityParams({
                 tickLower: -60000,
                 tickUpper: 60000,
@@ -154,16 +137,15 @@ contract TestCirclePaymasterHook is Test, Deployers {
         );
 
         vm.deal(bob, INITIAL_ETH_BALANCE);
+        vm.deal(alice, INITIAL_ETH_BALANCE); // Fund Alice with ETH
+        vm.deal(address(this), INITIAL_ETH_BALANCE); // Fund test contract with ETH
 
         console.log("currency0", address(Currency.unwrap(currency0)));
         console.log("currency1", address(Currency.unwrap(currency1)));
     }
 
     function testHookDeployment() public {
-        assertEq(
-            hook.circlePaymasterIntegration(),
-            address(circlePaymasterIntegration)
-        );
+        assertEq(hook.circlePaymasterIntegration(), address(circlePaymasterIntegration));
         assertEq(hook.USDC(), address(usdc));
         assertEq(hook.usdcToEthRate(), USDC_TO_ETH_RATE);
         assertTrue(circlePaymasterIntegration.authorizedCallers(address(hook)));
@@ -184,28 +166,21 @@ contract TestCirclePaymasterHook is Test, Deployers {
     }
 
     function testSwapWithoutGaslessMode() public {
-        uint256 poolIdUint = uint256(PoolId.unwrap(key.toId()));
+        uint256 aliceUsdcBefore = usdc.balanceOf(alice);
 
         // Use empty hookData for non-gasless mode
         bytes memory hookData = "";
 
-        uint256 aliceUsdcBefore = usdc.balanceOf(alice);
-
         // Swap USDC (currency0) for TokenB (currency1)
-        // So, zeroForOne: true means USDC -> TokenB
-        // Alice swaps USDC for TokenB
         vm.prank(alice);
         swapRouter.swap(
-            key,
+            poolKey,
             SwapParams({
                 zeroForOne: true, // USDC -> TokenB
                 amountSpecified: -1_000_000, // 1 USDC (6 decimals)
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
             }),
-            PoolSwapTest.TestSettings({
-                takeClaims: false,
-                settleUsingBurn: false
-            }),
+            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}),
             hookData
         );
 
@@ -213,102 +188,109 @@ contract TestCirclePaymasterHook is Test, Deployers {
         assertTrue(usdc.balanceOf(alice) < aliceUsdcBefore);
     }
 
-function testGaslessSwapPaysGasInUSDC() public {
-    // 1. Setup initial balances
-    uint256 initialAliceUSDC = 100_000e6; // 100,000 USDC
-    usdc.mint(alice, initialAliceUSDC);
-    
-    // 2. Approve hook to spend Alice's USDC (for gas payments)
-    vm.prank(alice);
-    usdc.approve(address(hook), type(uint256).max);
-    
-    // 3. Approve swapRouter to spend Alice's USDC (for the actual swap)
-    vm.prank(alice);
-    usdc.approve(address(swapRouter), type(uint256).max);
+    function testGaslessSwapPaysGasInUSDC() public {
+        // 1. Setup initial balances
+        uint256 initialAliceUSDC = usdc.balanceOf(alice); // Capture actual balance before any minting
+        uint256 initialAliceETH = alice.balance; // Capture initial ETH balance
 
-    // 4. Fund the integration contract with some USDC
-    uint256 integrationInitialUSDC = 10_000e6;
-    usdc.mint(address(circlePaymasterIntegration), integrationInitialUSDC);
+        // 2. Approve hook to spend Alice's USDC (for gas payments)
+        vm.prank(alice);
+        usdc.approve(address(hook), type(uint256).max);
 
-    // 5. Estimate gas costs
-    (uint256 ethCost, uint256 usdcCost) = hook.getGasEstimate(alice);
-    console.log("Estimated gas cost:", usdcCost, "USDC");
+        // 3. Approve swapRouter to spend Alice's USDC (for the actual swap)
+        vm.prank(alice);
+        usdc.approve(address(swapRouter), type(uint256).max);
 
-    // Ensure Alice has enough USDC for both swap and gas
-    assertGt(
-        usdc.balanceOf(alice),
-        usdcCost + 1e6, // Swap amount + gas
-        "Alice needs enough USDC for swap + gas"
-    );
+        // 4. Fund the integration contract with some USDC
+        uint256 integrationInitialUSDC = 10_000e6;
+        usdc.mint(address(circlePaymasterIntegration), integrationInitialUSDC);
 
-    // 6. Perform the gasless swap
-    vm.prank(alice);
-    swapRouter.swap(
-        key,
-        SwapParams({
-            zeroForOne: true, // USDC -> TokenB
-            amountSpecified: -1e6, // 1 USDC (6 decimals)
-            sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
-        }),
-        PoolSwapTest.TestSettings({
-            takeClaims: false,
-            settleUsingBurn: false
-        }),
-        abi.encode(true, alice) // Enable gasless mode for Alice
-    );
+        // 5. Estimate gas costs
+        (uint256 ethCost, uint256 usdcCost) = hook.getGasEstimate(alice);
+        console.log("Estimated gas cost:", usdcCost, "microUSDC");
 
-    // 7. Verify results
-    console.log("Alice USDC after:", usdc.balanceOf(alice));
-    console.log("Integration USDC after:", usdc.balanceOf(address(circlePaymasterIntegration)));
+        // Top up Alice with exact USDC needed
+        uint256 topUpAmount = usdcCost + 1e6; // Gas cost + 1 USDC for swap
+        usdc.mint(alice, topUpAmount);
 
-    // Alice should have less USDC (swap amount + gas)
-    assertLt(
-        usdc.balanceOf(alice),
-        initialAliceUSDC,
-        "Alice's USDC should decrease"
-    );
+        uint256 aliceUsdcBefore = usdc.balanceOf(alice); // Capture balance before swap
+        console.log("Alice USDC balance before swap:", aliceUsdcBefore, "microUSDC");
+        console.log("USDC required for gas:", usdcCost, "microUSDC");
 
-    // Integration contract should have received gas payment
-    assertGt(
-        usdc.balanceOf(address(circlePaymasterIntegration)),
-        integrationInitialUSDC,
-        "Integration should receive gas payment"
-    );
+        // Approve both hook AND integration contract
+        vm.prank(alice);
+        usdc.approve(address(hook), type(uint256).max);
+        vm.prank(alice);
+        usdc.approve(address(circlePaymasterIntegration), type(uint256).max);
 
-    // Alice's ETH balance should remain unchanged (gasless)
-    assertEq(
-        alice.balance,
-        INITIAL_ETH_BALANCE,
-        "Alice's ETH balance should not change"
-    );
-}
+        // Ensure PoolSwapTest has approval to spend Alice's USDC for the swap
+        vm.prank(alice);
+        usdc.approve(address(swapRouter), 1e6); // Approve 1 USDC for the swap
+
+        // Ensure Alice has enough USDC for both swap and gas
+        assertGt(
+            usdc.balanceOf(alice),
+            usdcCost + 1e6, // Swap amount + gas
+            "Alice needs enough USDC for swap + gas"
+        );
+
+        // 6. Perform the gasless swap (executed by test contract to simulate paymaster paying gas)
+        swapRouter.swap(
+            poolKey,
+            SwapParams({
+                zeroForOne: true, // USDC -> TokenB
+                amountSpecified: -1e6, // 1 USDC (6 decimals)
+                sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
+            }),
+            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}),
+            abi.encode(true, alice) // Enable gasless mode for Alice
+        );
+
+        // 7. Verify results
+        uint256 aliceUsdcAfter = usdc.balanceOf(alice);
+        console.log("Alice USDC after:", aliceUsdcAfter);
+        console.log("Integration USDC after:", usdc.balanceOf(address(circlePaymasterIntegration)));
+
+        // Alice should have less USDC (swap amount + gas)
+        assertLt(aliceUsdcAfter, aliceUsdcBefore, "Alice's USDC should decrease");
+
+        // Integration contract should have received gas payment
+        assertGt(
+            usdc.balanceOf(address(circlePaymasterIntegration)),
+            integrationInitialUSDC,
+            "Integration should receive gas payment"
+        );
+
+        // Log ETH balance for debugging
+        console.log("Alice ETH before:", initialAliceETH);
+        console.log("Alice ETH after:", alice.balance);
+
+        // Since gas is paid by the test contract (simulating paymaster), Alice's ETH balance should not change
+        assertEq(alice.balance, initialAliceETH, "Alice's ETH balance should not change");
+    }
 
     function testRelayerGetsReimbursedInUSDC() public {
         address relayer = makeAddr("relayer");
         uint256 usdcGasFee = 10e6; // 10 USDC
-        
+
         // Ensure integration has USDC
         usdc.mint(address(circlePaymasterIntegration), 1000e6);
-        
+
         // Set up Alice with deposit
         usdc.mint(alice, 1000e6);
         vm.prank(alice);
         usdc.approve(address(circlePaymasterIntegration), type(uint256).max);
-        
+
         // First process a gas payment to create deposit
         vm.prank(address(hook));
         circlePaymasterIntegration.processGasPayment(alice, 100000);
-        
+
         uint256 relayerUsdcBefore = usdc.balanceOf(relayer);
-        
+
         // Now reimburse (using authorized caller)
         vm.prank(address(hook));
-        circlePaymasterIntegration.reimburseRelayerInUSDC(
-            alice,
-            relayer,
-            usdcGasFee
-        );
-        
+        circlePaymasterIntegration.reimburseRelayerInUSDC(alice, relayer, usdcGasFee);
+
         uint256 relayerUsdcAfter = usdc.balanceOf(relayer);
         assertEq(relayerUsdcAfter, relayerUsdcBefore + usdcGasFee);
     }

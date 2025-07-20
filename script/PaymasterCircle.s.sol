@@ -31,24 +31,19 @@ contract DeployCirclePaymaster is Script {
 
         // Deploy Circle Paymaster Integration
         CirclePaymasterIntegration circlePaymasterIntegration = new CirclePaymasterIntegration(
-                0x9a13f98cB971c770034603fb798F21ef382CA9C7, // Sepolia PoolManager
-                0x3BA9A96eE3eFf3A69E2B18886AcF52027EFF8966, // Sepolia Circle Paymaster
-                0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238 // Sepolia USDC
-            );
-
-        console.log(
-            "Circle Paymaster Integration deployed at:",
-            address(circlePaymasterIntegration)
+            0x9a13f98cB971c770034603fb798F21ef382CA9C7, // Sepolia PoolManager
+            0x3BA9A96eE3eFf3A69E2B18886AcF52027EFF8966, // Sepolia Circle Paymaster
+            0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238 // Sepolia USDC
         );
+
+        console.log("Circle Paymaster Integration deployed at:", address(circlePaymasterIntegration));
 
         // Deploy Hook (you'll need to deploy Uniswap V4 PoolManager first)
         // For now, we'll use a placeholder address - you'll need to deploy PoolManager separately
         address poolManager = 0x0000000000000000000000000000000000000000; // TODO: Deploy PoolManager
 
         if (poolManager != address(0)) {
-            address hookAddress = address(
-                uint160(Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG)
-            );
+            address hookAddress = address(uint160(Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG));
 
             // Deploy hook using create2
             bytes memory hookCreationCode = abi.encodePacked(
@@ -65,12 +60,7 @@ contract DeployCirclePaymaster is Script {
             address deployedHook;
 
             assembly {
-                deployedHook := create2(
-                    0,
-                    add(hookCreationCode, 0x20),
-                    mload(hookCreationCode),
-                    salt
-                )
+                deployedHook := create2(0, add(hookCreationCode, 0x20), mload(hookCreationCode), salt)
             }
 
             if (deployedHook == address(0)) {
@@ -88,18 +78,9 @@ contract DeployCirclePaymaster is Script {
 
         console.log("\n=== DEPLOYMENT SUMMARY ===");
         console.log("Network: Sepolia Testnet");
-        console.log(
-            "Circle Paymaster Integration:",
-            address(circlePaymasterIntegration)
-        );
-        console.log(
-            "Circle Paymaster Address:",
-            0x3BA9A96eE3eFf3A69E2B18886AcF52027EFF8966
-        );
-        console.log(
-            "USDC Address:",
-            0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238
-        );
+        console.log("Circle Paymaster Integration:", address(circlePaymasterIntegration));
+        console.log("Circle Paymaster Address:", 0x3BA9A96eE3eFf3A69E2B18886AcF52027EFF8966);
+        console.log("USDC Address:", 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238);
         if (poolManager != address(0)) {
             console.log("Hook Address:");
         } else {

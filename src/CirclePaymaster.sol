@@ -33,28 +33,16 @@ contract CirclePaymasterIntegration is Ownable, ReentrancyGuard {
     DataConsumerV3 public immutable ORACLE;
 
     // Events
-    event GasPaymentProcessed(
-        address indexed user,
-        uint256 usdcAmount,
-        uint256 gasUsed
-    );
+    event GasPaymentProcessed(address indexed user, uint256 usdcAmount, uint256 gasUsed);
 
     event PaymasterDeposit(address indexed user, uint256 amount);
-    event RelayerReimbursed(
-        address indexed user,
-        address indexed relayer,
-        uint256 usdcAmount
-    );
+    event RelayerReimbursed(address indexed user, address indexed relayer, uint256 usdcAmount);
 
     // User gas payment tracking
     mapping(address => uint256) public userGasDeposits;
     mapping(address => bool) public authorizedCallers;
 
-    constructor(
-        address _circlePaymaster,
-        address _usdcToken,
-        address _oracle
-    ) Ownable(msg.sender) {
+    constructor(address _circlePaymaster, address _usdcToken, address _oracle) Ownable(msg.sender) {
         circlePaymaster = _circlePaymaster;
         usdcToken = _usdcToken;
         ORACLE = DataConsumerV3(_oracle);
@@ -66,9 +54,7 @@ contract CirclePaymasterIntegration is Ownable, ReentrancyGuard {
      * @return ethCost Estimated ETH cost
      * @return usdcCost Estimated USDC cost
      */
-    function getGasEstimate(
-        address user
-    ) external view returns (uint256 ethCost, uint256 usdcCost) {
+    function getGasEstimate(address user) external view returns (uint256 ethCost, uint256 usdcCost) {
         ethCost = _estimateGasCost();
         usdcCost = _convertEthToUsdc(ethCost);
     }
@@ -78,24 +64,15 @@ contract CirclePaymasterIntegration is Ownable, ReentrancyGuard {
      * @param user The user paying for gas
      * @param gasLimit The gas limit for the operation
      */
-    function processGasPayment(
-        address user,
-        uint256 gasLimit
-    ) external onlyAuthorizedCaller {
+    function processGasPayment(address user, uint256 gasLimit) external onlyAuthorizedCaller {
         uint256 estimatedGas = _estimateGasCost();
         uint256 usdcRequired = _convertEthToUsdc(estimatedGas);
 
         // Check user has enough USDC
-        require(
-            IERC20(usdcToken).balanceOf(user) >= usdcRequired,
-            "Insufficient USDC for gas payment"
-        );
+        require(IERC20(usdcToken).balanceOf(user) >= usdcRequired, "Insufficient USDC for gas payment");
 
         // Check user has approved this contract to spend USDC
-        require(
-            IERC20(usdcToken).allowance(user, address(this)) >= usdcRequired,
-            "Insufficient USDC allowance"
-        );
+        require(IERC20(usdcToken).allowance(user, address(this)) >= usdcRequired, "Insufficient USDC allowance");
 
         // Transfer USDC from user to this contract
         IERC20(usdcToken).safeTransferFrom(user, address(this), usdcRequired);
@@ -113,19 +90,12 @@ contract CirclePaymasterIntegration is Ownable, ReentrancyGuard {
      * @param relayer The relayer who paid ETH gas
      * @param usdcAmount The amount of USDC to reimburse
      */
-    function reimburseRelayerInUSDC(
-        address user,
-        address relayer,
-        uint256 usdcAmount
-    ) external onlyAuthorizedCaller {
+    function reimburseRelayerInUSDC(address user, address relayer, uint256 usdcAmount) external onlyAuthorizedCaller {
         require(user != address(0) && relayer != address(0), "Invalid address");
         require(usdcAmount > 0, "Zero amount");
 
         // Check if user has enough USDC deposit
-        require(
-            userGasDeposits[user] >= usdcAmount,
-            "Insufficient USDC deposit"
-        );
+        require(userGasDeposits[user] >= usdcAmount, "Insufficient USDC deposit");
 
         // Deduct from user's deposit
         userGasDeposits[user] -= usdcAmount;
@@ -141,17 +111,12 @@ contract CirclePaymasterIntegration is Ownable, ReentrancyGuard {
      * @param user The user to deposit for
      * @param amount The amount of ETH to deposit
      */
-    function depositToCirclePaymaster(
-        address user,
-        uint256 amount
-    ) external payable onlyAuthorizedCaller {
+    function depositToCirclePaymaster(address user, uint256 amount) external payable onlyAuthorizedCaller {
         require(user != address(0), "Invalid user");
         require(msg.value == amount, "Incorrect ETH amount");
 
         // Call Circle Paymaster's depositFor function
-        (bool success, ) = circlePaymaster.call{value: amount}(
-            abi.encodeWithSignature("depositFor(address)", user)
-        );
+        (bool success,) = circlePaymaster.call{value: amount}(abi.encodeWithSignature("depositFor(address)", user));
         require(success, "Circle Paymaster deposit failed");
 
         emit PaymasterDeposit(user, amount);
@@ -169,17 +134,14 @@ contract CirclePaymasterIntegration is Ownable, ReentrancyGuard {
      * @dev Get Circle Paymaster deposit for a user
      * @param user The user to check
      */
-    function getCirclePaymasterDeposit(
-        address user
-    ) external view returns (uint256) {
-        (bool success, bytes memory data) = circlePaymaster.staticcall(
-            abi.encodeWithSignature("getDeposit(address)", user)
-        );
+    function getCirclePaymasterDeposit(address user) external view returns (uint256) {
+        (bool success, bytes memory data) =
+            circlePaymaster.staticcall(abi.encodeWithSignature("getDeposit(address)", user));
         require(success, "Failed to get Circle Paymaster deposit");
         return abi.decode(data, (uint256));
     }
 
-        /**
+    /**
      * @dev Returns the latest USDC/ETH price from the oracle (Chainlink feed)
      * @return Price with 18 decimals (8 decimals from Chainlink scaled up)
      */
@@ -192,24 +154,16 @@ contract CirclePaymasterIntegration is Ownable, ReentrancyGuard {
      * @param user The user to withdraw for
      * @param amount The amount to withdraw
      */
-    function withdrawUserGasDeposit(
-        address user,
-        uint256 amount
-    ) external onlyAuthorizedCaller {
+    function withdrawUserGasDeposit(address user, uint256 amount) external onlyAuthorizedCaller {
         require(userGasDeposits[user] >= amount, "Insufficient deposit");
 
         userGasDeposits[user] -= amount;
         IERC20(usdcToken).safeTransfer(user, amount);
     }
 
-    function setAuthorizedCaller(
-        address caller,
-        bool authorized
-    ) external onlyOwner {
+    function setAuthorizedCaller(address caller, bool authorized) external onlyOwner {
         authorizedCallers[caller] = authorized;
     }
-
-    
 
     // Emergency functions
     function emergencyWithdrawUsdc(uint256 amount) external onlyOwner {
@@ -225,21 +179,14 @@ contract CirclePaymasterIntegration is Ownable, ReentrancyGuard {
         return (BASE_GAS_COST + SWAP_GAS_OVERHEAD) * tx.gasprice;
     }
 
-    function _convertEthToUsdc(
-        uint256 ethAmount
-    ) private view returns (uint256) {
-        uint256 usdcPerEth = uint256(
-            ORACLE.getChainlinkDataFeedLatestAnswer()
-        ) * 1e10; // 8 → 18 decimals
-        return (ethAmount * usdcPerEth) / 1e18;
+    function _convertEthToUsdc(uint256 ethAmount) private view returns (uint256) {
+        uint256 price = uint256(ORACLE.getChainlinkDataFeedLatestAnswer()); // P with 8 decimals
+        return (ethAmount * price) / 1e20; // Adjust for ETH (18 dec), USDC (6 dec), and P (8 dec)
     }
 
     // Modifiers
     modifier onlyAuthorizedCaller() {
-        require(
-            authorizedCallers[msg.sender] || msg.sender == owner(),
-            "Not authorized"
-        );
+        require(authorizedCallers[msg.sender] || msg.sender == owner(), "Not authorized");
         _;
     }
 

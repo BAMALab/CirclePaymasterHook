@@ -8,8 +8,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract SwapWithGasPayment is Script {
     // Sepolia Testnet Configuration
-    address payable constant CIRCLE_PAYMASTER_INTEGRATION =
-        payable(0x06893BD7f0dd2747290115a4189df0c57d3B8658);
+    address payable constant CIRCLE_PAYMASTER_INTEGRATION = payable(0x06893BD7f0dd2747290115a4189df0c57d3B8658);
     address constant USDC = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
     address constant USER = 0x2830C21ecA4d3F7b5D4e7b7AB4ca0D8C04025bf8;
 
@@ -23,32 +22,22 @@ contract SwapWithGasPayment is Script {
         console.log("=== SWAP WITH GAS PAYMENT DEMONSTRATION ===");
         console.log("Network: Sepolia Testnet");
         console.log("Deployer:", deployer);
-        console.log(
-            "Integration Contract:",
-            address(CIRCLE_PAYMASTER_INTEGRATION)
-        );
+        console.log("Integration Contract:", address(CIRCLE_PAYMASTER_INTEGRATION));
         console.log("USDC Token:", USDC);
         console.log("Timestamp:", block.timestamp);
         console.log("Block Number:", block.number);
 
         vm.startBroadcast(deployerPrivateKey);
 
-        CirclePaymasterIntegration integration = CirclePaymasterIntegration(
-            CIRCLE_PAYMASTER_INTEGRATION
-        );
+        CirclePaymasterIntegration integration = CirclePaymasterIntegration(CIRCLE_PAYMASTER_INTEGRATION);
         IERC20 usdc = IERC20(USDC);
 
         // Step 1: Pre-swap Setup and Balance Check
         console.log("\n=== STEP 1: PRE-SWAP SETUP ===");
         uint256 userUsdcBefore = usdc.balanceOf(USER);
         uint256 userEthBefore = USER.balance;
-        uint256 integrationUsdcBefore = usdc.balanceOf(
-            address(CIRCLE_PAYMASTER_INTEGRATION)
-        );
-        uint256 userAllowance = usdc.allowance(
-            USER,
-            address(CIRCLE_PAYMASTER_INTEGRATION)
-        );
+        uint256 integrationUsdcBefore = usdc.balanceOf(address(CIRCLE_PAYMASTER_INTEGRATION));
+        uint256 userAllowance = usdc.allowance(USER, address(CIRCLE_PAYMASTER_INTEGRATION));
 
         console.log("User USDC Balance:", userUsdcBefore);
         console.log("User ETH Balance:", userEthBefore);
@@ -59,10 +48,7 @@ contract SwapWithGasPayment is Script {
         console.log("\n=== STEP 2: USDC APPROVAL ===");
         if (userAllowance < 1000000) {
             console.log("Approving USDC spending...");
-            usdc.approve(
-                address(CIRCLE_PAYMASTER_INTEGRATION),
-                type(uint256).max
-            );
+            usdc.approve(address(CIRCLE_PAYMASTER_INTEGRATION), type(uint256).max);
             console.log("USDC approval successful!");
         } else {
             console.log("USDC already approved");
@@ -126,9 +112,7 @@ contract SwapWithGasPayment is Script {
         console.log("\n=== STEP 7: POST-SWAP BALANCES ===");
         uint256 userUsdcAfter = usdc.balanceOf(USER);
         uint256 userEthAfter = USER.balance;
-        uint256 integrationUsdcAfter = usdc.balanceOf(
-            address(CIRCLE_PAYMASTER_INTEGRATION)
-        );
+        uint256 integrationUsdcAfter = usdc.balanceOf(address(CIRCLE_PAYMASTER_INTEGRATION));
 
         console.log("User USDC after swap:", userUsdcAfter);
         console.log("User ETH after swap:", userEthAfter);
@@ -137,10 +121,7 @@ contract SwapWithGasPayment is Script {
         console.log("\n=== BALANCE CHANGES ===");
         console.log("USDC spent on swap:", userUsdcBefore - userUsdcAfter);
         console.log("ETH spent:", userEthBefore - userEthAfter);
-        console.log(
-            "USDC received by integration:",
-            integrationUsdcAfter - integrationUsdcBefore
-        );
+        console.log("USDC received by integration:", integrationUsdcAfter - integrationUsdcBefore);
 
         // Step 8: Gas Payment Summary
         console.log("\n=== GAS PAYMENT SUMMARY ===");
@@ -167,9 +148,7 @@ contract SwapWithGasPayment is Script {
         vm.stopBroadcast();
 
         console.log("\n=== DEMONSTRATION COMPLETE ===");
-        console.log(
-            "Successfully demonstrated gasless swap with USDC gas payment!"
-        );
+        console.log("Successfully demonstrated gasless swap with USDC gas payment!");
         console.log("Key benefits:");
         console.log("   - No ETH required for gas");
         console.log("   - Gas paid in USDC");
