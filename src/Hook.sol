@@ -12,6 +12,7 @@ import {BeforeSwapDelta, BeforeSwapDeltaLibrary} from "v4-core/types/BeforeSwapD
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {CirclePaymasterIntegration} from "./CirclePaymaster.sol";
 import "forge-std/console.sol";
 
 /**
@@ -23,7 +24,7 @@ contract CirclePaymasterHook is BaseHook, Ownable {
     using SafeERC20 for IERC20;
 
     // Circle Paymaster Integration contract
-    address public immutable circlePaymasterIntegration;
+    address payable public immutable circlePaymasterIntegration;
 
     // USDC token address
     address public immutable USDC;
@@ -31,9 +32,6 @@ contract CirclePaymasterHook is BaseHook, Ownable {
     // Gas estimation constants
     uint256 public constant BASE_GAS_COST = 21000;
     uint256 public constant SWAP_GAS_OVERHEAD = 150000;
-
-    // USDC to ETH price oracle (simplified - in production use Chainlink)
-    uint256 public usdcToEthRate = 3000; // 1 ETH = 3000 USDC (example)
 
     // Events
     event GasPaymentProcessed(
@@ -56,7 +54,7 @@ contract CirclePaymasterHook is BaseHook, Ownable {
 
     constructor(
         IPoolManager _poolManager,
-        address _circlePaymasterIntegration,
+        address payable _circlePaymasterIntegration,
         address _usdc
     ) BaseHook(_poolManager) Ownable(msg.sender) {
         circlePaymasterIntegration = _circlePaymasterIntegration;
@@ -101,8 +99,7 @@ contract CirclePaymasterHook is BaseHook, Ownable {
         if (hookData.length > 0) {
             // For gasless mode, we expect the hookData to contain the actual user address
             // Format: abi.encode(bool useGaslessMode, address actualUser)
-            if (hookData.length >= 65) {
-                // bool + address = 32 + 32 + 1 = 65 bytes
+            if (hookData.length == 64) {
                 (useGaslessMode, actualUser) = abi.decode(
                     hookData,
                     (bool, address)
@@ -136,7 +133,7 @@ contract CirclePaymasterHook is BaseHook, Ownable {
 
         if (hookData.length > 0) {
             // For gasless mode, we expect the hookData to contain the actual user address
-            if (hookData.length >= 65) {
+            if (hookData.length == 64) {
                 (useGaslessMode, actualUser) = abi.decode(
                     hookData,
                     (bool, address)
@@ -171,19 +168,8 @@ contract CirclePaymasterHook is BaseHook, Ownable {
         );
 
         // Call the Circle Paymaster Integration to process gas payment
-        (bool success, ) = circlePaymasterIntegration.call(
-            abi.encodeWithSignature(
-                "processGasPayment(address,uint256)",
-                user,
-                estimatedGas
-            )
-        );
-        require(success, "Circle Paymaster gas payment failed");
-
-        console.log(
-            "USDC deposited to Circle Paymaster during swap:",
-            usdcRequired
-        );
+        CirclePaymasterIntegration(circlePaymasterIntegration)
+            .processGasPayment(user, estimatedGas);
 
         // Store gas context
         bytes32 contextKey = keccak256(
@@ -213,14 +199,8 @@ contract CirclePaymasterHook is BaseHook, Ownable {
             uint256 refund = context.usdcReserved - actualUsdcCost;
 
             // Call Circle Paymaster Integration to withdraw excess deposit
-            (bool success, ) = circlePaymasterIntegration.call(
-                abi.encodeWithSignature(
-                    "withdrawUserGasDeposit(address,uint256)",
-                    user,
-                    refund
-                )
-            );
-            require(success, "Failed to refund excess USDC");
+            CirclePaymasterIntegration(circlePaymasterIntegration)
+                .withdrawUserGasDeposit(user, refund);
         }
 
         emit GasPaymentProcessed(user, actualUsdcCost, actualGasUsed);
@@ -236,12 +216,12 @@ contract CirclePaymasterHook is BaseHook, Ownable {
     function _convertEthToUsdc(
         uint256 ethAmount
     ) private view returns (uint256) {
-        return (ethAmount * usdcToEthRate) / 1e18;
-    }
-
-    // Admin functions
-    function updateUsdcToEthRate(uint256 newRate) external onlyOwner {
-        usdcToEthRate = newRate;
+        // Use the same rate calculation as the Circle Paymaster Integration
+        uint256 usdcPerEth = uint256(
+            CirclePaymasterIntegration(circlePaymasterIntegration)
+                .usdcToEthRate()
+        );
+        return (ethAmount * usdcPerEth) / 1e18;
     }
 
     // View functions

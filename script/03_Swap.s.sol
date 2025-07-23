@@ -2,6 +2,7 @@
 pragma solidity ^0.8.26;
 
 import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
+import {IERC20} from "forge-std/interfaces/IERC20.sol";
 
 import {BaseScript} from "./base/BaseScript.sol";
 
@@ -14,8 +15,13 @@ contract SwapScript is BaseScript {
             tickSpacing: 60,
             hooks: hookContract // This must match the pool
         });
-        // bytes memory hookData = new bytes(0);
-        bytes memory hookData = abi.encode(true, msg.sender);
+
+        // Use non-gasless mode by default (empty hookData)
+        bytes memory hookData = "";
+
+        // Get deployer address
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        address deployer = vm.addr(deployerPrivateKey);
 
         vm.startBroadcast();
 
@@ -23,15 +29,15 @@ contract SwapScript is BaseScript {
         token1.approve(address(swapRouter), type(uint256).max);
         token0.approve(address(swapRouter), type(uint256).max);
 
-        // Execute swap
+        // Execute swap without gasless mode
         swapRouter.swapExactTokensForTokens({
             amountIn: 1e18,
             amountOutMin: 0, // Very bad, but we want to allow for unlimited price impact
             zeroForOne: true,
             poolKey: poolKey,
             hookData: hookData,
-            receiver: address(this),
-            deadline: block.timestamp + 1
+            receiver: deployer, // Use deployer address instead of address(this)
+            deadline: block.timestamp + 3600 // 1 hour from now
         });
 
         vm.stopBroadcast();

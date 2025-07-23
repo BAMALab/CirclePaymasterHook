@@ -45,6 +45,8 @@ contract AddLiquidityScript is BaseScript, LiquidityHelpers {
         });
         bytes memory hookData = new bytes(0);
 
+        console2.log(address(poolManager), "pool");
+
         (uint160 sqrtPriceX96,,,) = poolManager.getSlot0(poolKey.toId());
 
         int24 currentTick = TickMath.getTickAtSqrtPrice(sqrtPriceX96);

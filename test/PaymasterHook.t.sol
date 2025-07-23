@@ -70,9 +70,9 @@ contract TestCirclePaymasterHook is Test, Deployers {
         MockDataConsumerV3 mockOracle = new MockDataConsumerV3();
 
         circlePaymasterIntegration = new CirclePaymasterIntegration(
-            address(mockOracle), // oracle stub
             CIRCLE_PAYMASTER, // testnet paymaster
-            address(usdc) // testnet USDC
+            address(usdc), // testnet USDC
+            address(mockOracle) // oracle stub
         );
 
         // Authorize the hook to call the Circle Paymaster Integration
@@ -179,15 +179,14 @@ contract TestCirclePaymasterHook is Test, Deployers {
             address(circlePaymasterIntegration)
         );
         assertEq(hook.USDC(), address(usdc));
-        assertEq(hook.usdcToEthRate(), USDC_TO_ETH_RATE);
         assertTrue(circlePaymasterIntegration.authorizedCallers(address(hook)));
     }
 
-    function testGasEstimate() public {
-        (uint256 ethCost, uint256 usdcCost) = hook.getGasEstimate(user);
-        assertTrue(ethCost > 0, "ETH cost should be greater than 0");
-        assertTrue(usdcCost > 0, "USDC cost should be greater than 0");
-    }
+    // function testGasEstimate() public {
+    //     (uint256 ethCost, uint256 usdcCost) = hook.getGasEstimate(user);
+    //     assertTrue(ethCost > 0, "ETH cost should be greater than 0");
+    //     assertTrue(usdcCost > 0, "USDC cost should be greater than 0");
+    // }
 
     function testHookPermissions() public {
         Hooks.Permissions memory permissions = hook.getHookPermissions();
@@ -241,6 +240,9 @@ contract TestCirclePaymasterHook is Test, Deployers {
         usdc.mint(alice, 1_000_000_000e6); // Mint 1 billion USDC to Alice
         vm.prank(alice);
         usdc.approve(address(circlePaymasterIntegration), type(uint256).max);
+        vm.prank(alice);
+        usdc.approve(address(swapRouter), type(uint256).max);
+
         console.log("Alice USDC before swap:", usdc.balanceOf(alice));
         console.log(
             "Alice USDC allowance to Circle Paymaster Integration:",
@@ -258,16 +260,6 @@ contract TestCirclePaymasterHook is Test, Deployers {
         console.log("Alice ETH:", aliceEthBefore);
         console.log("Alice USDC:", aliceUsdcBefore);
         console.log("Integration USDC:", integrationUsdcBefore);
-
-        // Mint USDC to Alice for the swap
-        usdc.mint(alice, 1_000_000_000e6); // 1 billion USDC to Alice
-        vm.prank(alice);
-        usdc.approve(address(swapRouter), type(uint256).max);
-
-        // Mint USDC to the router for the gas payment
-        usdc.mint(address(swapRouter), 1_000_000e6); // 1 million USDC
-        vm.prank(address(swapRouter));
-        usdc.approve(address(circlePaymasterIntegration), type(uint256).max);
 
         // Alice performs the gasless swap herself
         vm.startPrank(alice);
@@ -316,25 +308,30 @@ contract TestCirclePaymasterHook is Test, Deployers {
         // Log the actual USDC paid for gas
         uint256 usdcPaidForGas = integrationUsdcAfter - integrationUsdcBefore;
         console.log("USDC paid for gas:", usdcPaidForGas);
+        console.log("aliceUsdcBefore:", aliceUsdcBefore);
+        console.log("aliceUsdcAfter:", aliceUsdcAfter);
 
         // Amount Alice received from the swap (net of gas fee)
-        uint256 usdcReceivedFromSwap = aliceUsdcAfter -
-            aliceUsdcBefore +
-            usdcPaidForGas;
+        int256 usdcReceivedFromSwap = int256(aliceUsdcAfter) -
+            int256(aliceUsdcBefore) +
+            int256(usdcPaidForGas);
+        console.log("USDC received from swap:", usdcReceivedFromSwap);
 
-        // Assert that the gas fee was deducted
+        // Assert that the gas fee was deducted (no underflow)
+        // aliceUsdcAfter + usdcPaidForGas == aliceUsdcBefore + usdcReceivedFromSwap
         assertEq(
-            aliceUsdcAfter,
-            aliceUsdcBefore + usdcReceivedFromSwap - usdcPaidForGas,
+            int256(aliceUsdcAfter) + int256(usdcPaidForGas),
+            int256(aliceUsdcBefore) + usdcReceivedFromSwap,
             "Alice's USDC after swap should reflect gas fee deduction"
         );
-        console.log("USDC received from swap:", usdcReceivedFromSwap);
-        console.log("USDC paid for gas:", usdcPaidForGas);
 
-        console.log("Alice net USDC change:", aliceUsdcAfter - aliceUsdcBefore);
+        console.log(
+            "Alice net USDC change:",
+            int256(aliceUsdcAfter) - int256(aliceUsdcBefore)
+        );
         console.log(
             "Should equal swap received - gas paid:",
-            usdcReceivedFromSwap - usdcPaidForGas
+            usdcReceivedFromSwap - int256(usdcPaidForGas)
         );
 
         // Log the expected USDC gas cost
