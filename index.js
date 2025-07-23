@@ -133,6 +133,10 @@ async function executeGaslessSwap() {
     console.log("Pool key:", poolKey);
     console.log("Hook data (gasless mode):", hookData);
     
+    // Check initial balances including ETH
+    const initialEthBalance = await publicClient.getBalance({ address: account.address });
+    console.log("Initial ETH balance:", initialEthBalance.toString(), "wei");
+    
     // Check allowances
     const { routerAllowance, paymasterAllowance } = await checkAllowances();
     
@@ -211,9 +215,11 @@ async function executeGaslessSwap() {
     console.log("Block number:", receipt.blockNumber);
     console.log("Gas used:", receipt.gasUsed.toString());
 
-    // Check final balances
+    // Check final balances including ETH
     const finalToken0Balance = await token0.read.balanceOf([account.address]);
     const finalUsdcBalance = await usdc.read.balanceOf([account.address]);
+    const finalEthBalance = await publicClient.getBalance({ address: account.address });
+    
     console.log("\n=== FINAL RESULTS ===");
     console.log("Initial Token0 balance:", token0Balance.toString());
     console.log("Final Token0 balance:", finalToken0Balance.toString());
@@ -221,6 +227,17 @@ async function executeGaslessSwap() {
     console.log("Initial USDC balance:", usdcBalance.toString());
     console.log("Final USDC balance:", finalUsdcBalance.toString());
     console.log("USDC used (gas fees):", (usdcBalance - finalUsdcBalance).toString());
+    console.log("Initial ETH balance:", initialEthBalance.toString(), "wei");
+    console.log("Final ETH balance:", finalEthBalance.toString(), "wei");
+    console.log("ETH used for gas:", (initialEthBalance - finalEthBalance).toString(), "wei");
+    
+    if (initialEthBalance - finalEthBalance > 0n) {
+      console.log("⚠️  WARNING: ETH was used for gas fees! This is NOT truly gasless.");
+      console.log("🔧 Need to implement proper Circle Paymaster bundler integration.");
+    } else {
+      console.log("🎉 TRUE gasless swap! No ETH used for gas fees!");
+    }
+    
     console.log("🎉 Gasless swap completed! Gas fees were paid in USDC via Circle Paymaster Integration!");
     
   } catch (error) {
