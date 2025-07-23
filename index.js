@@ -1,7 +1,8 @@
 import "dotenv/config";
-import { createPublicClient, http, createWalletClient, getContract, encodeAbiParameters } from "viem";
+import { createPublicClient, http, createWalletClient, encodeAbiParameters, encodeFunctionData } from "viem";
 import { sepolia } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
+import { createBundlerClient, toSimple7702SmartAccount } from "viem/account-abstraction";
 import { erc20Abi } from "viem";
 
 const chain = sepolia;
@@ -9,18 +10,12 @@ const usdcAddress = process.env.USDC_ADDRESS || "0x1c7D4B196Cb0C7B01d743Fbc6116a
 const ownerPrivateKey = process.env.OWNER_PRIVATE_KEY;
 const recipientAddress = process.env.RECIPIENT_ADDRESS;
 
-// Swap configuration (using exact working addresses from ethertest.js)
-const swapAddress = "0x00000000000044a361Ae3cAc094c9D1b14Eece97"; // Uniswap V4 router
-const currency0 = "0x3B4c3885E8144af60A101c75468727863cFf23fA"; // Working token from ethertest.js
-const currency1 = "0x90954dcFB08C84e1ebA306f59FAD660b3A7B5808"; // WETH
-const fee = 5000;
-const tickSpacing = 100;
-const hooks = "0xc9e902b5047433935C8f6B173fC936Fd696C00c0";
-const circlePaymasterIntegration = "0x194CC08EFeD09BE41E94b9Bb4c5Aa265662B428e"; // Circle Paymaster Integration
-const amountIn = 1000000000000000000n; // 1 token (18 decimals to match working config)
-const amountOutMin = 0n; // Accept any amount out (not safe for production)
-const zeroForOne = true; // true if swapping currency0 for currency1
-const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600); // 1 hour from now
+// Official Circle Paymaster v0.7 addresses from Circle documentation
+const CIRCLE_PAYMASTER_V07 = "0x3BA9A96eE3eFf3A69E2B18886AcF52027EFF8966";
+const ENTRYPOINT_V07 = "0x0000000071727De22E5E9d8BAf0edAc6f37da032";
+
+console.log("🎯 CIRCLE PAYMASTER v0.7 - TRUE GASLESS USDC TRANSFER");
+console.log("=====================================================");
 
 // Set up clients
 const publicClient = createPublicClient({ 
@@ -28,252 +23,197 @@ const publicClient = createPublicClient({
   transport: http() 
 });
 
-const account = privateKeyToAccount(ownerPrivateKey);
+const owner = privateKeyToAccount(ownerPrivateKey);
+
 const walletClient = createWalletClient({
-  account,
   chain,
-  transport: http()
+  transport: http(),
+  account: owner
 });
 
-console.log("Account address:", account.address);
-console.log("Chain:", publicClient.chain.name);
+// Note: You'll need to get a bundler API key from Pimlico, Alchemy, or similar
+// For now, this will show the error and what you need to do
+const bundlerApiKey = process.env.BUNDLER_API_KEY;
 
-// PoolKey struct as array (tuple) for viem
-const poolKey = [currency0, currency1, fee, tickSpacing, hooks];
-
-// Encode hook data using proper ABI encoding (like ethertest.js)
-// (bool gasless, address user) -> matches ethers.AbiCoder.defaultAbiCoder().encode(["bool", "address"], [true, account.address])
-const hookData = encodeAbiParameters(
-  [
-    { name: 'gasless', type: 'bool' },
-    { name: 'user', type: 'address' }
-  ],
-  [true, account.address]
-);
-
-console.log("Hook data (ABI encoded):", hookData);
-
-// Swap router ABI (from your working ethertest.js)
-const swapRouterAbi = [
-  {
-    inputs: [
-      { internalType: "uint256", name: "amountIn", type: "uint256" },
-      { internalType: "uint256", name: "amountOutMin", type: "uint256" },
-      { internalType: "bool", name: "zeroForOne", type: "bool" },
-      {
-        components: [
-          { internalType: "address", name: "currency0", type: "address" },
-          { internalType: "address", name: "currency1", type: "address" },
-          { internalType: "uint24", name: "fee", type: "uint24" },
-          { internalType: "int24", name: "tickSpacing", type: "int24" },
-          { internalType: "address", name: "hooks", type: "address" }
-        ],
-        internalType: "struct PoolKey",
-        name: "poolKey",
-        type: "tuple"
-      },
-      { internalType: "bytes", name: "hookData", type: "bytes" },
-      { internalType: "address", name: "receiver", type: "address" },
-      { internalType: "uint256", name: "deadline", type: "uint256" }
-    ],
-    name: "swapExactTokensForTokens",
-    outputs: [{ internalType: "int256", name: "", type: "int256" }],
-    stateMutability: "payable",
-    type: "function"
-  }
-];
-
-// Get contracts for both tokens
-const usdc = getContract({ 
-  client: publicClient, 
-  address: usdcAddress, 
-  abi: erc20Abi 
-});
-
-const token0 = getContract({ 
-  client: publicClient, 
-  address: currency0, 
-  abi: erc20Abi 
-});
-
-// Check balances
-const usdcBalance = await usdc.read.balanceOf([account.address]);
-const token0Balance = await token0.read.balanceOf([account.address]);
-console.log("USDC balance:", usdcBalance.toString());
-console.log("Token0 balance:", token0Balance.toString());
-
-if (token0Balance < amountIn) {
-  console.log(
-    `Fund ${account.address} with Token0 (${currency0}) on ${publicClient.chain.name}, then run this again.`,
-  );
-  console.log(`Current Token0 balance: ${token0Balance.toString()}, Required: ${amountIn.toString()}`);
-  process.exit(0);
+if (!bundlerApiKey) {
+  console.log("\n🔧 SETUP REQUIRED:");
+  console.log("1. Get a bundler API key from Pimlico: https://pimlico.io");
+  console.log("2. Or use Alchemy: https://alchemy.com");
+  console.log("3. Add BUNDLER_API_KEY=your_key_here to your .env file");
+  console.log("4. The bundler is required for ERC-4337 UserOperations");
+  process.exit(1);
 }
 
-// Check ETH balance for approvals
-const ethBalance = await publicClient.getBalance({ address: account.address });
-console.log("ETH balance:", ethBalance.toString(), "wei");
+const bundlerClient = createBundlerClient({
+  chain,
+  transport: http(`https://api.pimlico.io/v2/sepolia/rpc?apikey=${bundlerApiKey}`),
+  entryPointAddress: ENTRYPOINT_V07,
+});
 
-// Check allowances
-async function checkAllowances() {
-  const routerAllowance = await token0.read.allowance([account.address, swapAddress]);
-  const paymasterAllowance = await token0.read.allowance([account.address, circlePaymasterIntegration]);
-  
-  console.log("Router allowance (Token0):", routerAllowance.toString());
-  console.log("Paymaster allowance (Token0):", paymasterAllowance.toString());
-  
-  return { routerAllowance, paymasterAllowance };
-}
-
-// Execute gasless swap using Circle Paymaster Integration hook
-async function executeGaslessSwap() {
+async function main() {
   try {
-    console.log("\n🚀 Executing gasless Token0->WETH swap with Circle Paymaster Integration...");
-    console.log("Swapping", amountIn.toString(), "Token0 for WETH");
-    console.log("Pool key:", poolKey);
-    console.log("Hook data (gasless mode):", hookData);
+    console.log("\n1️⃣ Setting up Smart Account...");
     
-    // Check initial balances including ETH
-    const initialEthBalance = await publicClient.getBalance({ address: account.address });
-    console.log("Initial ETH balance:", initialEthBalance.toString(), "wei");
-    
-    // Check allowances
-    const { routerAllowance, paymasterAllowance } = await checkAllowances();
-    
-    // Handle approvals if needed
-    if (routerAllowance < amountIn) {
-      console.log("Approving Token0 for router...");
-      if (ethBalance < 1000000000000000n) { // 0.001 ETH
-        console.error("❌ Insufficient ETH for approval transaction!");
-        console.error("You need a small amount of ETH for the one-time approval.");
-        console.error("Get Sepolia ETH from: https://sepoliafaucet.com/");
-        return;
-      }
-      
-      const approveHash = await walletClient.writeContract({
-        address: currency0,
-        abi: erc20Abi,
-        functionName: "approve",
-        args: [swapAddress, amountIn],
-      });
-      
-      console.log("Router approval transaction:", approveHash);
-      await publicClient.waitForTransactionReceipt({ hash: approveHash });
-      console.log("✅ Router approval confirmed");
-    }
-    
-    if (paymasterAllowance < amountIn) {
-      console.log("Approving Token0 for Circle Paymaster Integration...");
-      if (ethBalance < 1000000000000000n) { // 0.001 ETH
-        console.error("❌ Insufficient ETH for approval transaction!");
-        console.error("You need a small amount of ETH for the one-time approval.");
-        console.error("Get Sepolia ETH from: https://sepoliafaucet.com/");
-        return;
-      }
-      
-      const approveHash = await walletClient.writeContract({
-        address: currency0,
-        abi: erc20Abi,
-        functionName: "approve",
-        args: [circlePaymasterIntegration, amountIn],
-      });
-      
-      console.log("Paymaster approval transaction:", approveHash);
-      await publicClient.waitForTransactionReceipt({ hash: approveHash });
-      console.log("✅ Paymaster approval confirmed");
-    }
-    
-    console.log("✅ All approvals are in place!");
-    console.log("✅ Ready to execute gasless swap!");
-    
-    // Execute the swap
-    console.log("\n🔄 Executing swap transaction...");
-    console.log("💡 Gas fees will be paid in tokens via Circle Paymaster Integration hook");
-    
-    const swapHash = await walletClient.writeContract({
-      address: swapAddress,
-      abi: swapRouterAbi,
-      functionName: "swapExactTokensForTokens",
-      args: [
-        amountIn,
-        amountOutMin,
-        zeroForOne,
-        poolKey,
-        hookData,
-        account.address,
-        deadline
-      ],
+    // Create simple smart account
+    const smartAccount = await toSimple7702SmartAccount({
+      client: publicClient,
+      owner,
+      entryPointAddress: ENTRYPOINT_V07,
     });
     
-    console.log("✅ Swap transaction submitted!");
-    console.log("Transaction hash:", swapHash);
-
-    // Wait for transaction confirmation
-    console.log("⏳ Waiting for transaction confirmation...");
-    const receipt = await publicClient.waitForTransactionReceipt({ hash: swapHash });
-    console.log("✅ Transaction confirmed!");
-    console.log("Block number:", receipt.blockNumber);
-    console.log("Gas used:", receipt.gasUsed.toString());
-
-    // Check final balances including ETH
-    const finalToken0Balance = await token0.read.balanceOf([account.address]);
-    const finalUsdcBalance = await usdc.read.balanceOf([account.address]);
-    const finalEthBalance = await publicClient.getBalance({ address: account.address });
+    console.log("✅ Smart Account Address:", smartAccount.address);
     
-    console.log("\n=== FINAL RESULTS ===");
-    console.log("Initial Token0 balance:", token0Balance.toString());
-    console.log("Final Token0 balance:", finalToken0Balance.toString());
-    console.log("Token0 used (swap):", (token0Balance - finalToken0Balance).toString());
-    console.log("Initial USDC balance:", usdcBalance.toString());
-    console.log("Final USDC balance:", finalUsdcBalance.toString());
-    console.log("USDC used (gas fees):", (usdcBalance - finalUsdcBalance).toString());
-    console.log("Initial ETH balance:", initialEthBalance.toString(), "wei");
-    console.log("Final ETH balance:", finalEthBalance.toString(), "wei");
-    console.log("ETH used for gas:", (initialEthBalance - finalEthBalance).toString(), "wei");
+    // Check initial balances
+    console.log("\n2️⃣ Checking Initial Balances...");
     
-    if (initialEthBalance - finalEthBalance > 0n) {
-      console.log("⚠️  WARNING: ETH was used for gas fees! This is NOT truly gasless.");
-      console.log("🔧 Need to implement proper Circle Paymaster bundler integration.");
-    } else {
-      console.log("🎉 TRUE gasless swap! No ETH used for gas fees!");
+    const ownerEthBalance = await publicClient.getBalance({ address: owner.address });
+    const ownerUsdcBalance = await publicClient.readContract({
+      address: usdcAddress,
+      abi: erc20Abi,
+      functionName: "balanceOf",
+      args: [owner.address],
+    });
+    
+    const smartAccountEthBalance = await publicClient.getBalance({ address: smartAccount.address });
+    const smartAccountUsdcBalance = await publicClient.readContract({
+      address: usdcAddress,
+      abi: erc20Abi,
+      functionName: "balanceOf",
+      args: [smartAccount.address],
+    });
+    
+    console.log(`EOA ETH: ${ownerEthBalance} wei`);
+    console.log(`EOA USDC: ${ownerUsdcBalance} units`);
+    console.log(`Smart Account ETH: ${smartAccountEthBalance} wei`);
+    console.log(`Smart Account USDC: ${smartAccountUsdcBalance} units`);
+    
+    // Transfer some USDC to smart account if needed
+    if (smartAccountUsdcBalance < 1000000n) { // Less than 1 USDC
+      console.log("\n3️⃣ Funding Smart Account with USDC...");
+      
+      const fundTx = await walletClient.writeContract({
+        address: usdcAddress,
+        abi: erc20Abi,
+        functionName: "transfer",
+        args: [smartAccount.address, 5000000n], // 5 USDC
+      });
+      
+      console.log("Funding transaction:", fundTx);
+      
+      // Wait for funding to complete
+      await publicClient.waitForTransactionReceipt({ hash: fundTx });
+      
+      const newSmartAccountUsdcBalance = await publicClient.readContract({
+        address: usdcAddress,
+        abi: erc20Abi,
+        functionName: "balanceOf",
+        args: [smartAccount.address],
+      });
+      
+      console.log(`✅ Smart Account USDC after funding: ${newSmartAccountUsdcBalance} units`);
     }
     
-    console.log("🎉 Gasless swap completed! Gas fees were paid in USDC via Circle Paymaster Integration!");
+    console.log("\n4️⃣ Preparing Gasless USDC Transfer UserOperation...");
+    
+    // Prepare the USDC transfer call data
+    const transferAmount = 1000000n; // 1 USDC
+    const transferCallData = encodeFunctionData({
+      abi: erc20Abi,
+      functionName: "transfer",
+      args: [recipientAddress, transferAmount],
+    });
+    
+    // Prepare paymaster data for Circle Paymaster v0.7
+    // The paymaster needs to know which token to charge (USDC)
+    const paymasterData = encodeAbiParameters(
+      [{ type: "address", name: "token" }],
+      [usdcAddress]
+    );
+    
+    console.log("Transfer amount:", transferAmount.toString(), "USDC units");
+    console.log("To:", recipientAddress);
+    console.log("Paymaster:", CIRCLE_PAYMASTER_V07);
+    console.log("Token for gas:", usdcAddress);
+    
+    // Create UserOperation
+    const userOperation = await bundlerClient.prepareUserOperation({
+      account: smartAccount,
+      calls: [{
+        to: usdcAddress,
+        data: transferCallData,
+      }],
+      paymaster: CIRCLE_PAYMASTER_V07,
+      paymasterData,
+    });
+    
+    console.log("\n5️⃣ Submitting UserOperation...");
+    console.log("UserOperation prepared:", {
+      sender: userOperation.sender,
+      nonce: userOperation.nonce,
+      paymaster: userOperation.paymaster,
+    });
+    
+    // Submit the UserOperation
+    const userOpHash = await bundlerClient.sendUserOperation(userOperation);
+    console.log("✅ UserOperation submitted:", userOpHash);
+    
+    // Wait for the UserOperation to be mined
+    console.log("\n6️⃣ Waiting for UserOperation to be mined...");
+    const receipt = await bundlerClient.waitForUserOperationReceipt({ hash: userOpHash });
+    
+    console.log("✅ UserOperation mined!");
+    console.log("Transaction hash:", receipt.receipt.transactionHash);
+    console.log("Block number:", receipt.receipt.blockNumber);
+    console.log("Gas used:", receipt.receipt.gasUsed);
+    
+    // Check final balances
+    console.log("\n7️⃣ Checking Final Balances...");
+    
+    const finalOwnerEthBalance = await publicClient.getBalance({ address: owner.address });
+    const finalSmartAccountEthBalance = await publicClient.getBalance({ address: smartAccount.address });
+    const finalSmartAccountUsdcBalance = await publicClient.readContract({
+      address: usdcAddress,
+      abi: erc20Abi,
+      functionName: "balanceOf",
+      args: [smartAccount.address],
+    });
+    
+    const finalRecipientUsdcBalance = await publicClient.readContract({
+      address: usdcAddress,
+      abi: erc20Abi,
+      functionName: "balanceOf",
+      args: [recipientAddress],
+    });
+    
+    console.log(`Final EOA ETH: ${finalOwnerEthBalance} wei`);
+    console.log(`Final Smart Account ETH: ${finalSmartAccountEthBalance} wei`);
+    console.log(`Final Smart Account USDC: ${finalSmartAccountUsdcBalance} units`);
+    console.log(`Final Recipient USDC: ${finalRecipientUsdcBalance} units`);
+    
+    // Calculate changes
+    console.log("\n📊 BALANCE CHANGES:");
+    console.log(`EOA ETH change: ${finalOwnerEthBalance - ownerEthBalance} wei`);
+    console.log(`Smart Account ETH change: ${finalSmartAccountEthBalance - smartAccountEthBalance} wei`);
+    console.log(`Smart Account USDC change: ${finalSmartAccountUsdcBalance - smartAccountUsdcBalance} units`);
+    
+    if (finalOwnerEthBalance === ownerEthBalance && finalSmartAccountEthBalance === smartAccountEthBalance) {
+      console.log("🎉 SUCCESS: NO ETH WAS USED FOR GAS! Gas was paid in USDC!");
+    } else {
+      console.log("⚠️  ETH was still used for gas. Need to investigate...");
+    }
     
   } catch (error) {
-    console.error("❌ Gasless swap failed:", error.message);
+    console.error("❌ Error:", error.message);
+    console.error("Full error:", error);
     
-    // Check for specific error types
-    if (
-      error.message.includes("insufficient funds") ||
-      error.message.includes("insufficient balance")
-    ) {
-      console.error("❌ Insufficient funds error detected!");
-      console.error("This usually means:");
-      console.error("  1. Not enough tokens for the swap");
-      console.error("  2. Not enough tokens for gas fees (gasless mode)");
-      console.error("  3. Token approval issues");
-    } else if (error.message.includes("PoolNotInitialized")) {
-      console.error("❌ Pool not initialized error!");
-      console.error("The pool for these tokens hasn't been created or initialized yet.");
-      console.error("This is a testnet limitation - try different token pairs.");
-    } else if (error.message.includes("nonce")) {
-      console.error("❌ Nonce error - try again in a few seconds");
-    } else if (error.message.includes("revert")) {
-      console.error("❌ Transaction reverted - check contract state and parameters");
+    if (error.message.includes("apikey")) {
+      console.log("\n🔧 SETUP REQUIRED:");
+      console.log("1. Get a bundler API key from Pimlico: https://pimlico.io");
+      console.log("2. Or use Alchemy: https://alchemy.com");
+      console.log("3. Replace 'YOUR_API_KEY_HERE' in the bundler URL");
+      console.log("4. The bundler is required for ERC-4337 UserOperations");
     }
-    
-    console.error("Full error details:", error);
   }
 }
 
-// Run the gasless swap
-executeGaslessSwap()
-  .then(() => {
-    console.log("\n🎉 Circle Paymaster Integration gasless swap completed!");
-    process.exit(0);
-  })
-  .catch((error) => {
-    console.error("❌ Fatal error:", error);
-    process.exit(1);
-  });
+main().catch(console.error);
